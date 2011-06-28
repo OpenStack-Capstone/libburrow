@@ -58,6 +58,9 @@ The user API comprises:
       + log_callback              [doubles as error_callback]
       + complete_callback         [when a command completes, error OR success]
       + event_wait_callback       [see non-blocking discussion]
+     * Context functions:
+      + set_context
+      + get_context 
   * Paired with the event callback function is the event_raised function,
     which, when event_wait_callback is replaced by user code, must be called
     when a waited upon event is raised. For completeness,

@@ -1,3 +1,9 @@
+/*
+  EXAMPLE FILE
+  
+  Crazy outdated -- do not refer to.
+*/
+
 #include <stdio.h>
 #include <event2/event.h>
 #include <burrow/burrow.h>
@@ -5,6 +11,12 @@
 /* typedefs for libevent structures (not typedef'd by default) */
 typedef struct event_base event_base_st;
 typedef struct event event_st;
+
+/* Simple linked list structure */
+typedef struct {
+  linked_list_st *next;
+  void *data;
+} linked_list_st; 
 
 /* Client states */
 typedef enum {
@@ -31,6 +43,7 @@ typedef struct {
   event_base_st event_base;
 } client_st;
 
+
 /* Client functions */
 client_st *client_create(burrow_st *burrow, event_base *ev_base);
 void client_free(client_st *client);
@@ -51,6 +64,8 @@ int main(void)
   
   burrow = burrow_create("http");
   burrow_set_options(burrow, BURROW_OPT_NONBLOCK);
+  /* eday seemed to support this type of interface for backend parameters
+     for modularity, stating that most  */
   burrow_set_backend_option_string("server", "burrow.example.com");
   burrow_set_backend_option_int("port", 1234);
   /* We won't implement connection pooling. This is just an example: */
@@ -67,6 +82,7 @@ int main(void)
   
   for (i = 0; i < CLIENT_COUNT; i++) {
     client = client_create(burrow, ev_base);
+    /* Kick off client processing */
     client_process(client);
   }
   
@@ -89,13 +105,23 @@ client_st *client_create(burrow_st *burrow, event_base *ev_base)
 
   client->burrow = burrow;
   client->event_base = ev_base;
-  client->accts = NULL;
-  client->queues = NULL;
-  client->msgs = NULL;
+  client->accts = list_new();
+  client->queues = list_new();
+  client->msgs = list_new();
   client->cur_account = NULL;
   client->cur_queue = NULL;
 
   client->state = S_START;
+}
+
+void client_free(client_st *client)
+{
+  if (client) {
+    list_free(client->accts);
+    list_free(client->queues);
+    list_free(client->msgs);
+    free(client);
+  }
 }
 
 void client_process(client_st *client)
@@ -163,6 +189,13 @@ void client_process(client_st *client)
   return;
 }
 
+void print_burrow_msg(burrow_message_st *msg)
+{
+  printf("%s->%s->%s:\n", burrow_message_get_id(msg));
+  fwrite("")
+}
+
+
 void event_raised_callback(evutil_socket_t socket, short event, void *context)
 {
   client_st *client = (client_st *)context;
@@ -175,6 +208,7 @@ void event_raised_callback(evutil_socket_t socket, short event, void *context)
   client_process(client);
 }
 
+/* libburrow callbacks: */
 void wait_for_event_callback(int fd, short wait_events, void *context)
 {
   client_st *client = (client_st *)context;
@@ -197,7 +231,7 @@ void message_callback(burrow_message_st *message, void *context)
   client_st *client = (client_st *)context;
   burrow_message_st *copy = burrow_message_new();
   burrow_message_clone(copy, message)
-  list_add(client->msgs, copy);
+  list_push(client->msgs, (void*)copy);
 }
 
 void queue_callback(burrow_queue_st *queue, void *context)
@@ -205,7 +239,7 @@ void queue_callback(burrow_queue_st *queue, void *context)
   client_st *client = (client_st *)context;
   burrow_queue_st *copy = burrow_queue_new();
   burrow_queue_clone(copy, queue)
-  list_add(client->queues, copy);
+  list_push(client->queues, (void*)copy);
 }
 
 void account_callback(burrow_account_st *acct, void *context)
@@ -213,7 +247,7 @@ void account_callback(burrow_account_st *acct, void *context)
   client_st *client = (client_st *)context;
   burrow_account_st *account = burrow_account_new();
   burrow_account_clone(copy, acct)
-  list_add(client->accts, copy);
+  list_push(client->accts, (void*)copy);
 }
 
 /* Not entirely sure how this should look... */
@@ -236,4 +270,18 @@ void error_callback(burrow_error_t err, void *context)
   * Should the new/allocation functions, such as burrow_account_new() accept
     a burrow_st so that they can be associated with and subsequently auto-
     deallocated along with the burrow_st?
+    + And should they accept NULL, in which case no association is made?
 */
+
+
+
+
+
+
+
+
+
+
+
+
+
