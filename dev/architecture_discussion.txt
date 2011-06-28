@@ -1,0 +1,106 @@
+Requirements Gathering
+----------------------
+
+General Description
+-------------------
+The libburrow project is a C library which presents a unified API through which
+the user can interact with burrow servers. The major design goals are:
+
+* Non-blocking implementation, blocking optional
+* Callback-driven
+* Low library dependence
+* Easily integrated with existing asynchronous workflows (e.g., libevent)
+
+Architecture
+------------
+The basic architecture consists of two major parts:
+  * The user facing "front-end", which is backend-agnostic
+  * The backend, which must expose specific functionality to the front-end
+
+The API, likewise is split into these two main categories:
+  * The user API functions
+  * The functions which are common to all backends; the front-end
+    routes its commands to the backend through these functions.
+
+Data structures are opaque to allow easier future-versioning.
+
+xxx_size functions are provided to allow for high-performance implementations
+that may allocate contiguous blocks / pools of memory which may be passed
+into burrow_create as an initialization destination.
+
+Non-blocking behavior is enabled by the user replacing the event_callback
+function with user code. The default function provided by the library will
+invoke an event loop that will block.
+
+The User API
+------------
+The user API comprises:
+  * Memory/structure allocation/deallocation functions
+    + burrow_create / free / size / clone
+      + create and size take a char *backend parameter
+  * Configuration functions, under which are
+    * Front-end configuration functions
+      + Which are hard-coded functions with specific types and affect
+        all front-end behavior, including: logging level, string copy
+        behavior, memory allocation behavior, [others]
+    * Backend configuration functions
+      + Which are passsed through to the backend in key/value pairs,
+        due to typical use-case where a configuration file specifies both
+        backend type and configuration parameters.
+        + String key always, potentially several different value types
+    * User-configurable memory functions, defaulting to standard system funcs,
+      + malloc
+      + free
+    * Callback functions, which are required for library operation, including:
+      + message_callback
+      + queue_list_callback
+      + account_list_callback     ???: should these be composed into one?
+      + log_callback              [doubles as error_callback]
+      + complete_callback         [when a command completes, error OR success]
+      + event_wait_callback       [see non-blocking discussion]
+  * Paired with the event callback function is the event_raised function,
+    which, when event_wait_callback is replaced by user code, must be called
+    when a waited upon event is raised. For completeness,
+      + event_raised
+  * Command functions
+    * Including the full complement of
+      + get_message
+      + create_message
+      + update_message
+      + delete_message
+      + update_messages
+      + delete_messages
+      + get_queues
+      + delete_queues
+      + get_accounts
+      + delete_accounts
+    * These functions put the library in a ready-state to process the commands,
+      which is performed with burrow_process, which begins or continues the
+      invocation of the current command.
+  * Potentially other functions, dependent upon which structures end up being
+    exposed to the user, such as:
+    * burrow_message_create / free / clone 
+    * burrow_command_create / free / clone
+    
+    
+Presently, all backends will be statically linked against the front-end code,
+but the backends will be designed with dynamic loading in mind.
+
+The backend API comprises:
+  * Backend allocation / freeing functions:
+    + burrow_backend_create(dst, burrow) / free / size / clone(dst, src)
+  * Command functions, as listed above in the front-end API
+  * Configuration commands, including
+    + burrow_backend_set_option(key, val)
+    + burrow_backend_get_option(key)
+    + burrow_backend_set_option_int(key, intval) [maybe]
+    + burrow_backend_get_option_int(key)         [maybe]
+  * Processing functions, including:
+    + burrow_backend_process
+    + burrow_backend_event_raised
+
+Additionally, errors must be propagated from backend to frontend to user.
+This requires that some semi-public API be revealed to the backend. The intent
+is not to provide a non-modifiable API, as such. At this stage, backends are
+considered to be developed in tandem with the rest of the project. 
+
