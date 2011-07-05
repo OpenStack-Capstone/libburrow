@@ -14,7 +14,7 @@ JSON_PARSER was chosen over a few other C-based parsers according to the followi
 * parses on a per-byte basis. This allows for stream-parsing.
 
 
-Inside /JSON_PARSER there is an already compiled executable 'jest'. This executable allows for simple testing of the parser via interactive input from the shell. To try it, just enter: ./jtest at the prompt.
+Inside /JSON_PARSER there is an already compiled executable 'jtest'. This executable allows for simple testing of the parser via interactive input from the shell. To try it, just enter: ./jtest at the prompt.
 i.e.: 
 
 local:JSON_PARSER$ ./jtest
