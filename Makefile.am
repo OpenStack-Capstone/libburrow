@@ -25,6 +25,13 @@ EXTRA_DIST = \
   docs/doxygen/header.html.in \
   tests/run.sh
 
+MAINTAINERCLEANFILES = \
+	m4/libtool.m4 \
+	m4/ltoptions.m4 \
+	m4/ltsugar.m4 \
+	m4/ltversion.m4 \
+	m4/lt~obsolete.m4
+
 #
 # libburrow
 #
@@ -48,7 +55,7 @@ libburrow_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBBURROW_LIBRARY_VERSION)
 # Simple libburrow application
 #
 
-include config/pandora-plugin.am
+#include config/pandora-plugin.am
 
 TESTS = $(check_PROGRAMS)
 
