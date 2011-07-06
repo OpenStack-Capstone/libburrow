@@ -42,13 +42,13 @@ struct burrow_filters_st
 struct burrow_command_st
 {
   burrow_command_t command;
-  char *account;
-  char *queue;
-  char *message_id;
-  uint8_t *body;
+  const char *account;
+  const char *queue;
+  const char *message_id;
+  const uint8_t *body;
   size_t *body_size;
-  burrow_filters_st *filters;
-  burrow_attributes_st *attributes;
+  const burrow_filters_st *filters;
+  const burrow_attributes_st *attributes;
 };
 
 struct burrow_st {
@@ -74,6 +74,7 @@ struct burrow_st {
   void *backend_context;
   
   uint32_t watch_size;
+  uint32_t timeout;
   uint32_t pfds_size;
   struct pollfd *pfds;
 };
@@ -86,6 +87,7 @@ struct burrow_backend_functions_st {
 
   burrow_backend_set_option_fn *set_option;
 
+  burrow_backend_cancel_fn *cancel;
   burrow_backend_process_fn *process;
   burrow_backend_event_raised_fn *event_raised;
 

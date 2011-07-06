@@ -2,7 +2,16 @@
 
 /* Functions visible to the backend: */
 
-static void burrow_default_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
+void burrow_log_error(burrow_st *burrow, const char *msg, ...);
+
+void burrow_log_info(burrow_st *burrow, const char *msg, ...);
+
+void burrow_log_debug(burrow_st *burrow, const char *msg, ...);
+
+burrow_backend_functions_st *burrow_backend_load_functions(const char *backend);
+
+
+static void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
   uint32_t count;
@@ -69,6 +78,7 @@ static burrow_result_t burrow_start_command(burrow_st *burrow)
     case BURROW_CMD_CREATE_MESSAGE:
       return burrow->backend->create_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->body, cmd->body_size, cmd->attributes);
 
+    case BURROW_CMD_NONE:
     default:
       /* log error */
       return BURROW_ERROR_UNSUPPORTED;
@@ -106,12 +116,12 @@ static void burrow_poll_fds(burrow_st *burrow)
         event |= BURROW_IOEVENT_READ;
       if (pfd->revents & POLLOUT)
         event |= BURROW_IOEVENT_WRITE;
-      burrow_raise_event(buffow, pfd->fd, event);
+      burrow_event_raised(burrow, pfd->fd, event);
 
       /* And copy the last pfd to this location */
       count--;
       watch_size--;
-      last_pfd = burrow->pfds[watch_size - 1];
+      last_pfd = &burrow->pfds[watch_size - 1];
       
       /* But not if we're at the last pfd entry */
       if (last_pfd > pfd) {
@@ -128,7 +138,6 @@ static void burrow_poll_fds(burrow_st *burrow)
   burrow->watch_size = watch_size;
   return;
 }
-
 
 burrow_result_t burrow_process(burrow_st *burrow)
 {
@@ -168,48 +177,48 @@ burrow_result_t burrow_process(burrow_st *burrow)
 
     case BURROW_STATE_FINISH: /* backend is done */
       burrow->state = BURROW_STATE_IDLE; /* we now accept new commands */
-      if (burrow->callbacks->complete)
-        burrow->callbacks->complete(burrow); /* could update burrow state by calling a command again */
+      if (burrow->complete_fn)
+        burrow->complete_fn(burrow); /* could update burrow state by calling a command again */
+      break;
+    
+    case BURROW_STATE_IDLE: /* suppress compiler warning */
+    default:
+      /* log error */
       break;
     }
   }
   
   burrow->flags ^= BURROW_FLAG_PROCESSING;
-
   return result;
 }
 
-
-
-
-
-void burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
+burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
 {
+  burrow_result_t result;
+  
+  if (!burrow->backend->event_raised) {
+    /* log error */; 
+    return BURROW_ERROR_UNSUPPORTED;
+  }
+
   if (burrow->state != BURROW_STATE_WAITING)
-    /* log warning */;
-    
-  burrow_result_t result = burrow->backend->event_raised(fd, event);
+    (void)0/* log warning */;
+        
+   result = burrow->backend->event_raised(burrow->backend, fd, event);
   
   if (result == BURROW_OK) {
     burrow->state = BURROW_STATE_READY;
-    if (burrow->options & BURROW_FLAG_AUTOPROCESS)
-      burrow_process(burrow);
+    if (burrow->options & BURROW_OPT_AUTOPROCESS)
+      return burrow_process(burrow);
   }
+  return result;
 }
 
-
-/**
- * Cancels an ongoing command. 
- * Will trigger a command-complete callback if any command is pending.
- * TODO: Should trigger a command complete call always?
- *
- * @param burrow Burrow object
- */
 void burrow_cancel(burrow_st *burrow)
 {
   if (burrow->state == BURROW_STATE_IDLE)
     return;
-  
+
   burrow->watch_size = 0;
   if (burrow->backend->cancel)
     burrow->backend->cancel(burrow->backend_context);
@@ -217,51 +226,63 @@ void burrow_cancel(burrow_st *burrow)
   burrow->cmd.command = BURROW_CMD_NONE;
 }
 
-
-
-
-
-
-
-
-
-
 /* Burrow Object Functions */
-
-void burrow_default_message_fn(burrow_st *burrow, char *message_id,
-                              uint8_t *body,
-                              size_t body_size,
-                              burrow_attributes_st *attributes)
+static void burrow_default_message_fn(burrow_st *burrow,
+                                      const char *message_id,
+                                      const uint8_t *body,
+                                      ssize_t body_size,
+                                      const burrow_attributes_st *attributes)
 {
+  (void) burrow;
+  (void) message_id;
+  (void) body;
+  (void) body_size;
+  (void) attributes;
   burrow_log_info(burrow, "Message received, but message callback function undefined.");
 }
 
-void burrow_default_queues_fn(burrow_st *burrow, char **queues)
+static void burrow_default_queues_fn(burrow_st *burrow, const char **queues, size_t size)
 {
+  (void) burrow;
+  (void) queues;
+  (void) size;
   burrow_log_info(burrow, "Queues received, but queues callback function undefined.");
 }
 
-void burrow_default_accounts_fn(burrow_st *burrow, char **accounts)
+static void burrow_default_accounts_fn(burrow_st *burrow, const char **accounts, size_t size)
 {
+  (void) burrow;
+  (void) accounts;
+  (void) size;
   burrow_log_info(burrow, "Accounts received, but accounts callback function undefined.");
 }
 
-void burrow_default_complete_fn(burrow_st *burrow)
+static void burrow_default_complete_fn(burrow_st *burrow)
 {
+  (void) burrow;
   burrow_log_info(burrow, "Command complete, but complete callback function undefined.");
 }
 
-void *burrow_default_malloc_fn(burrow_st *burrow, size_t size)
+static void *burrow_default_malloc_fn(burrow_st *burrow, size_t size)
 {
+  (void) burrow;
   return malloc(size);
 }
 
-void burrow_default_free_fn(burrow_st *burrow, void *ptr)
+static void burrow_default_free_fn(burrow_st *burrow, void *ptr)
 {
+  (void) burrow;
   free(ptr);
 }
 
-burrow_st *burrow_create(burrow_st *burrow, char *backend)
+static void burrow_default_log_fn(burrow_st *burrow, burrow_verbose_t verbose, const char *msg)
+{
+  (void) burrow;
+  (void) verbose;
+  (void) msg;
+}
+
+burrow_st *burrow_create(burrow_st *burrow, const char *backend)
 {
   burrow_backend_functions_st *backend_fns;
   
@@ -272,7 +293,7 @@ burrow_st *burrow_create(burrow_st *burrow, char *backend)
   if (!burrow) {
     /* We allocate to include the backend just after the base
        burrow struct */
-    burrow = malloc(sizeof(burrow_st) + backend->size());
+    burrow = malloc(sizeof(burrow_st) + backend_fns->size());
     if (!burrow)
       return NULL;
     burrow->flags = BURROW_FLAG_SELFALLOCATED;
@@ -282,7 +303,7 @@ burrow_st *burrow_create(burrow_st *burrow, char *backend)
   burrow->options = 0;
   burrow->verbose = BURROW_VERBOSE_ERROR;
   burrow->state = BURROW_STATE_IDLE;
-  burrow->cmd.command = BURROW_COMMAND_NONE;
+  burrow->cmd.command = BURROW_CMD_NONE;
   burrow->context = NULL;
   burrow->backend_context = backend_fns->create((void *)(burrow + 1), burrow);
   burrow->backend = backend_fns;
@@ -296,16 +317,15 @@ burrow_st *burrow_create(burrow_st *burrow, char *backend)
   burrow->log_fn      = &burrow_default_log_fn;
   burrow->complete_fn = &burrow_default_complete_fn;
   burrow->watch_fd_fn = &burrow_default_watch_fd_fn;
+  
+  burrow->pfds = NULL;
+  burrow->pfds_size = 0;
+  burrow->watch_size = 0;
+  burrow->timeout = 60;
 
   return burrow;
 }
 
-/**
- * Frees a burrow object, utilizing the free function set in the burrow
- * object (if set).
- *
- * @param burrow Burrow object to be freed
- */
 void burrow_free(burrow_st *burrow)
 {
   /* TODO: more */
@@ -316,18 +336,11 @@ void burrow_free(burrow_st *burrow)
   }
     
   if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
-    free(burrow)
+    free(burrow);
   }
 }
 
-/**
- * Returns the size required to allocate a burrow object, optionally
- * with a specific backend included.
- *
- * @param backend Backend for size calculation
- * @return The size of a complete burrow structure
- */
-ssize_t burrow_size(char *backend)
+ssize_t burrow_size(const char *backend)
 {
   burrow_backend_functions_st *backend_fns;
   
@@ -358,87 +371,47 @@ burrow_st *burrow_clone(burrow_st *dest, burrow_st *src)
   return NULL;
 }
  
-/**
- * Sets an associated context pointer. This will be passed to all
- * callback functions.
- *
- * @param burrow Burrow object
- * @param context Pointer to context
- */
 void burrow_set_context(burrow_st *burrow, void *context)
 {
   burrow->context = context;
 }
 
-/**
- * Gets the associated context pointer.
- *
- * @param burrow Burrow object
- */
 void *burrow_get_context(burrow_st *burrow)
 {
   return burrow->context;
 }
 
-/**
- * Sets burrow options
- *
- * @param burrow Burrow object
- * @param options Options to be set
- */
 void burrow_set_options(burrow_st *burrow, burrow_options_t options)
 {
   burrow->options = options;
 }
 
-/**
- * Enables specified options.
- *
- * @param burrow Burrow object
- * @param options Options to be enabled
- */
 void burrow_add_options(burrow_st *burrow, burrow_options_t options)
 {
   burrow->options |= options;
 }
 
-/**
- * Disables specified options.
- *
- * @param burrow Burrow object
- * @param options Options to be disabled
- */
 void burrow_remove_options(burrow_st *burrow, burrow_options_t options_to_remove)
 {
   burrow->options &= ~options_to_remove;
 }
 
-/**
- * Returns current burrow options.
- *
- * @param burrow Burrow object
- * @return Current burrow options
- */
 burrow_options_t burrow_get_options(burrow_st *burrow)
 {
   return burrow->options;
 }
 
-/**
- * Sets a string backend option.
- *
- * @param burrow Burrow object
- * @param option Option name
- * @param value  Option value, string
- */
 burrow_result_t burrow_backend_set_option(burrow_st *burrow, const char *option, const char *value)
 {
-  return burrow->backend_fns->set_option(option, value);
+  return burrow->backend->set_option(burrow->backend, option, value);
 }
 
-burrow_result_t burrow_backend_set_option_int(burrow_st *burrow, char *option, int32_t value)
+burrow_result_t burrow_backend_set_option_int(burrow_st *burrow, const char *option, int32_t value)
 {
-  return BURROW_ERROR_UNIMPLEMENTED;
+  (void) burrow;
+  (void) option;
+  (void) value;
+  return BURROW_ERROR_UNSUPPORTED;
   /* TODO: not implemented? Maybe never? */
 }
 
@@ -462,35 +435,30 @@ void burrow_set_log_fn(burrow_st *burrow, burrow_log_fn *callback)
   burrow->log_fn = callback;
 }
 
-void burrow_set_complete_fn(burrow_st *burrow, burrow_complete_fn *callback);
+void burrow_set_complete_fn(burrow_st *burrow, burrow_complete_fn *callback)
 {
   burrow->complete_fn = callback;
 }
 
-
-void burrow_set_watch_fd_fn(burrow_st *burrow, burrow_event_wait_fn *callback)
+void burrow_set_watch_fd_fn(burrow_st *burrow, burrow_watch_fd_fn *callback)
 {
   burrow->watch_fd_fn = callback;
 }
 
-
 void burrow_set_malloc_fn(burrow_st *burrow, burrow_malloc_fn *func)
 {
-  burrow->malloc_fn = callback;
+  burrow->malloc_fn = func;
 }
-
 
 void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func)
 {
-  burrow->free_fn = callback;
+  burrow->free_fn = func;
 }
-
-
 
 burrow_result_t burrow_get_message(burrow_st *burrow, const char *account, const char *queue, const char *msgid)
 {
   if (burrow->state != BURROW_STATE_IDLE) {
-    burrow_log_error("burrow_get_message: burrow not in an idle state")
+    burrow_log_error(burrow, "burrow_get_message: burrow not in an idle state");
     return BURROW_ERROR_NOT_READY;
   }
   

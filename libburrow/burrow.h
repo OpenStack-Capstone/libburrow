@@ -399,7 +399,7 @@ burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_s
  *
  * @param burrow Burrow object
  */
-burrow_result_t burrow_cancel(burrow_st *burrow);
+void burrow_cancel(burrow_st *burrow);
 
 /**
  * Begins or continues processing of the current burrow command.

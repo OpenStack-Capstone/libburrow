@@ -69,8 +69,9 @@ typedef enum {
   
 /* Internal flags */
 typedef enum {
-  BURROW_FLAG_PROCESSING = (1 << 0),
-  BURROW_FLAG_MAX        = (1 << 1)
+  BURROW_FLAG_PROCESSING    = (1 << 0),
+  BURROW_FLAG_SELFALLOCATED = (1 << 1),
+  BURROW_FLAG_MAX           = (1 << 2)
 } burrow_flags_t; 
   
 typedef enum {
@@ -121,10 +122,10 @@ typedef struct burrow_backend_functions_st burrow_backend_functions_st;
 
 /* Function pointers for user callbacks */
 typedef void (burrow_message_fn)(burrow_st *burrow,
-                                 char *message_id,
-                                 uint8_t *body,
+                                 const char *message_id,
+                                 const uint8_t *body,
                                  ssize_t body_size,
-                                 burrow_attributes_st *attributes);
+                                 const burrow_attributes_st *attributes);
 
 typedef void (burrow_queues_fn)(burrow_st *burrow, const char **queues, size_t size);
 
@@ -151,8 +152,6 @@ typedef burrow_result_t (burrow_backend_set_option_fn)(void *backend, const char
 typedef void (burrow_backend_cancel_fn)(void *backend);
 typedef burrow_result_t (burrow_backend_process_fn)(void *backend);
 typedef burrow_result_t (burrow_backend_event_raised_fn)(void *backend, int fd, burrow_ioevent_t event);
-
-
 
 typedef burrow_result_t (burrow_get_accounts_fn)(void *backend, const burrow_filters_st *filters);
 typedef burrow_result_t (burrow_delete_accounts_fn)(void *backend, const burrow_filters_st *filters);
