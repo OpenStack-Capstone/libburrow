@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# sentence_name
+# libburrow -- Burrow Client Library
 #
 # Copyright (C) 2010 Eric Day (eday@oddments.org)
 # All rights reserved.
@@ -10,7 +10,7 @@
 #
 
 # Get filename we want to run without path
-name=`echo $1 | sed 's/.*\/\(project_name\/.*[^\/]*\)$/\1/'`
+name=`echo $1 | sed 's/.*\/\(libburrow\/.*[^\/]*\)$/\1/'`
 
 ext=`echo $name | sed 's/.*\.\([^.]*$\)/\1/'`
 if [ "x$ext" = "x$name" ]
@@ -24,22 +24,22 @@ then
 fi
 
 # Set prefix if it was given through environment
-if [ -n "$all_caps_name_TEST_PREFIX" ]
+if [ -n "$LIBBURROW_TEST_PREFIX" ]
 then
-  if [ -n "$all_caps_name_TEST_FILTER" ]
+  if [ -n "$LIBBURROW_TEST_FILTER" ]
   then
     # If filter variable is set, only apply prefix to those that match
-    for x in $all_caps_name_TEST_FILTER
+    for x in $LIBBURROW_TEST_FILTER
     do
       if [ "x$x" = "x$name" ]
       then
-        prefix="$libtool_prefix $all_caps_name_TEST_PREFIX"
+        prefix="$libtool_prefix $LIBBURROW_TEST_PREFIX"
         with=" (with prefix after filter)"
         break
       fi
     done
   else
-    prefix="$libtool_prefix $all_caps_name_TEST_PREFIX"
+    prefix="$libtool_prefix $LIBBURROW_TEST_PREFIX"
     with=" (with prefix)"
   fi
 fi
@@ -49,7 +49,7 @@ ECHO=`which echo`
 export ECHO
 
 # This needs to be set because of broken libtool on OSX
-DYLD_LIBRARY_PATH=project_name/.libs
+DYLD_LIBRARY_PATH=libburrow/.libs
 export DYLD_LIBRARY_PATH
 
-$prefix $1 $all_caps_name_TEST_ARGS
+$prefix $1 $LIBBURROW_TEST_ARGS
