@@ -1,3 +1,40 @@
+/*
+ * libburrow -- Burrow Client Library
+ *
+ * Copyright (C) 2011 Tony Wooster (twooster@gmail.com)
+ * All rights reserved.
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in this directory for full text.
+ */
+
+/**
+ * @file
+ * @brief Burrow declarations
+ */
+
+#ifndef __BURROW_BURROW_H
+#define __BURROW_BURROW_H
+
+#ifndef __cplusplus
+# include <stdbool.h>
+#endif
+
+#include <inttypes.h>
+#include <sys/types.h>
+#include <poll.h>
+
+#include <libdrizzle/visibility.h>
+#include <libdrizzle/constants.h>
+#include <libdrizzle/structs.h>
+#include <libdrizzle/conn.h>
+#include <libdrizzle/result.h>
+#include <libdrizzle/column.h>
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 /* Burrow Object Functions */
 
 /**
@@ -389,3 +426,8 @@ burrow_result_t burrow_process(burrow_st *burrow);
  */
 burrow_result_t burrow_event_raised(burrow_st *burrow, burrow_fd_t fd, burrow_event_t event);
 
+#ifdef  __cplusplus
+}
+#endif
+
+#endif /* __BURROW_BURROW_H */
