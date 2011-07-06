@@ -1,3 +1,18 @@
+/*
+ * libburrow -- Burrow Client Library
+ *
+ * Copyright (C) 2011 Tony Wooster (twooster@gmail.com)
+ * All rights reserved.
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in this directory for full text.
+ */
+
+/**
+ * @file
+ * @brief Dummy backend implementation
+ */
+
 #include <libburrow/burrow.h>
 
 struct burrow_backend_dummy_st
@@ -13,6 +28,8 @@ struct burrow_backend_dummy_st
   time_t ttl;
   time_t hide;
 };
+
+typedef struct burrow_backend_dummy_st burrow_backend_dummy_st;
 
 static void dummy_free_internals(burrow_backend_dummy_st *dummy)
 {
@@ -99,6 +116,9 @@ static int search_matches(burrow_backend_dummy_st *dummy, const char *account, c
   return 0;
 }
 
+
+
+
 void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st*)ptr;
@@ -122,7 +142,7 @@ void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
   dummy->hide = 0;
 }
 
-void *burrow_backend_dummy_free(void *ptr)
+void burrow_backend_dummy_free(void *ptr)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   

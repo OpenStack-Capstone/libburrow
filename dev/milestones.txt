@@ -1,9 +1,0 @@
-6/5 -- Pert Chart + Plan Complete, Use of CI System
-6/12 -- Arch Discussed / Approved w/ Sponsor, Support Libs, Docs, Source Style, etc nailed down
-6/26 -- Simple Async HTTP and Memory Backend Implemented; Architecture Largely Documented, Partial Implementation
-7/3 -- HTTP & Memory Component Implementation, First Long-Term Unit Tests
-7/10 -- Development & Testing Continues -- First True Functional Tests / Demo Programs
-7/24 -- Project Nearing Completion -- Feature Complete w/ Bugs & Testing Gaps, Docbook Begins
-7/24 -- ... slack ...
-7/31 -- Feature Complete w/ 70% test coverage, finalization: Project Closing & Deliverables
-8/8  -- Project presentation
