@@ -8,7 +8,7 @@
  * @param backend String indicating which backend to load and use
  * @return A handle to an initialized burrow_st *, or NULL on error
  */
-burrow_st *burrow_create(burrow_st *burrow, char *backend);
+burrow_st *burrow_create(burrow_st *burrow, const char *backend);
 
 /**
  * Frees a burrow object, utilizing the free function set in the burrow
@@ -18,6 +18,27 @@ burrow_st *burrow_create(burrow_st *burrow, char *backend);
  */
 void burrow_free(burrow_st *burrow);
 
+/**
+ * Returns the size required to allocate a burrow object, optionally
+ * with a specific backend included.
+ *
+ * @param backend Backend for size calculation
+ * @return The size of a complete burrow structure w/ backend; if the specified
+ *         backend is NULL or does not exist, then -1 is returned
+ */
+ssize_t burrow_size(const char *backend);
+
+/**
+ * Clones a burrow object in its entirety. Any ongoing commands/state will not
+ * be present in the cloned object. If no destination is specified, one will
+ * be allocated using the source's malloc function.
+ *
+ * @param dest Destination burrow objec; can be NULL
+ * @param src Source burrow object; must not be NULL
+ * @return The cloned burrow object, or NULL on error
+ */
+burrow_st *burrow_clone(burrow_st *dest, burrow_st *src);  
+ 
 /**
  * Sets an associated context pointer. This will be passed to all
  * callback functions.
@@ -40,7 +61,7 @@ void *burrow_get_context(burrow_st *burrow);
  * @param burrow Burrow object
  * @param options Options to be set
  */
-void burrow_set_options(burrow_options_t options);
+void burrow_set_options(burrow_st *burrow, burrow_options_t options);
 
 /**
  * Enables specified options.
@@ -48,7 +69,7 @@ void burrow_set_options(burrow_options_t options);
  * @param burrow Burrow object
  * @param options Options to be enabled
  */
-void burrow_add_options(burrow_options_t options);
+void burrow_add_options(burrow_st *burrow, burrow_options_t options);
 
 /**
  * Disables specified options.
@@ -56,7 +77,7 @@ void burrow_add_options(burrow_options_t options);
  * @param burrow Burrow object
  * @param options Options to be disabled
  */
-void burrow_remove_options(burrow_options_t options_to_remove);
+void burrow_remove_options(burrow_st *burrow, burrow_options_t options_to_remove);
 
 /**
  * Returns current burrow options.
@@ -64,7 +85,7 @@ void burrow_remove_options(burrow_options_t options_to_remove);
  * @param burrow Burrow object
  * @return Current burrow options
  */
-burrow_options_t burrow_get_options();
+burrow_options_t burrow_get_options(burrow_st *burrow);
 
 /**
  * Sets a string backend option.
@@ -73,7 +94,7 @@ burrow_options_t burrow_get_options();
  * @param option Option name
  * @param value  Option value, string
  */
-void burrow_backend_set_option(burrow_st *burrow, char *option, char *value);
+burrow_result_t burrow_backend_set_option(burrow_st *burrow, const char *option, const char *value);
 
 /**
  * Sets an integer backend option.
@@ -82,7 +103,7 @@ void burrow_backend_set_option(burrow_st *burrow, char *option, char *value);
  * @param option Option name
  * @param value  Option value, int32
  */
-void burrow_backend_set_option_int(burrow_st *burrow, char *option, int32_t value);
+burrow_result_t burrow_backend_set_option_int(burrow_st *burrow, const char *option, int32_t value);
 
 
 /**
@@ -178,10 +199,13 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func);
  * @param body_size The size of the message body in bytes
  * @param attributes Message attributes (ignored if NULL)
  */
-void burrow_create_message(burrow_st *burrow,
-                           char *account, char *queue, char *message_id,
-                           uint8_t *body, size_t body_size
-                           burrow_attributes_st *attributes);
+burrow_result_t burrow_create_message(burrow_st *burrow,
+                                      const char *account, 
+                                      const char *queue, 
+                                      const char *message_id,
+                                      const uint8_t *body,
+                                      size_t body_size
+                                      const burrow_attributes_st *attributes);
 
 
 /**
@@ -196,9 +220,11 @@ void burrow_create_message(burrow_st *burrow,
  * @param message_id Message id
  * @param attributes Message attributes; must not be NULL
  */
-void burrow_update_message(burrow_st *burrow,
-                           char *account, char *queue, char *message_id,
-                           burrow_attributes_st *attributes);
+burrow_result_t burrow_update_message(burrow_st *burrow,
+                                      const char *account,
+                                      const char *queue,
+                                      const char *message_id,
+                                      const burrow_attributes_st *attributes);
 
 /**
  * Sets up burrow to issue a get_message command.
@@ -211,8 +237,10 @@ void burrow_update_message(burrow_st *burrow,
  * @param queue Queue name
  * @param message_id Message id
  */
-void burrow_get_message(burrow_st *burrow,
-                        char *account, char *queue, char *message_id);
+burrow_result_t burrow_get_message(burrow_st *burrow,
+                                   const char *account,
+                                   const char *queue,
+                                   const char *message_id);
 
 /**
  * Sets up burrow to issue a delete_message command.
@@ -225,8 +253,10 @@ void burrow_get_message(burrow_st *burrow,
  * @param queue Queue name
  * @param message_id Message id
  */
-void burrow_delete_message(burrow_st *burrow,
-                           char *account, char *queue, char *message_id);
+burrow_result_t burrow_delete_message(burrow_st *burrow,
+                                      const char *account,
+                                      const char *queue,
+                                      const char *message_id);
 
 /**
  * Sets up burrow to issue a get_messages command.
@@ -239,8 +269,10 @@ void burrow_delete_message(burrow_st *burrow,
  * @param queue Queue name
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_get_messages(burrow_st *burrow,
-                         char *account, char *queue, burrow_filters_st *filters);
+burrow_result_t burrow_get_messages(burrow_st *burrow,
+                                    const char *account,
+                                    const char *queue,
+                                    const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_messages command.
@@ -253,8 +285,10 @@ void burrow_get_messages(burrow_st *burrow,
  * @param queue Queue name
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_delete_messages(burrow_st *burrow,
-                            char *account, char *queue, burrow_filters_st *filters);
+burrow_result_t burrow_delete_messages(burrow_st *burrow,
+                                       const char *account,
+                                       const char *queue,
+                                       const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue an update_messages command.
@@ -268,9 +302,11 @@ void burrow_delete_messages(burrow_st *burrow,
  * @param attributes Attributes to set; must not be null
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_update_messages(burrow_st *burrow,
-                            char *account, char *queue, burrow_attributes_st *attributes,
-                            burrow_filters_st *filters);
+burrow_result_t burrow_update_messages(burrow_st *burrow,
+                                       const char *account,
+                                       const char *queue,
+                                       const burrow_attributes_st *attributes,
+                                       const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_queues command.
@@ -282,8 +318,9 @@ void burrow_update_messages(burrow_st *burrow,
  * @param account Account name
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_get_queues(burrow_st *burrow,
-                       char *account, burrow_filters_st *filters);
+burrow_result_t burrow_get_queues(burrow_st *burrow,
+                                  const char *account,
+                                  const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_queues command.
@@ -295,8 +332,9 @@ void burrow_get_queues(burrow_st *burrow,
  * @param account Account name
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_delete_queues(burrow_st *burrow,
-                          char *account, burrow_filters_st *filters);
+burrow_result_t burrow_delete_queues(burrow_st *burrow,
+                                     const char *account,
+                                     const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_accounts command.
@@ -307,7 +345,7 @@ void burrow_delete_queues(burrow_st *burrow,
  * @param burrow Burrow object
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_get_accounts(burrow_st *burrow, burrow_filters_st *filters);
+burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_accounts command.
@@ -318,7 +356,7 @@ void burrow_get_accounts(burrow_st *burrow, burrow_filters_st *filters);
  * @param burrow Burrow object
  * @param filters Filters to apply (may be NULL)
  */
-void burrow_delete_accounts(burrow_st *burrow, burrow_filters_st *filters);
+burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters);
 
 /**
  * Cancels an ongoing command. 
@@ -327,7 +365,7 @@ void burrow_delete_accounts(burrow_st *burrow, burrow_filters_st *filters);
  *
  * @param burrow Burrow object
  */
-void burrow_cancel(burrow_st *burrow);
+burrow_result_t burrow_cancel(burrow_st *burrow);
 
 /**
  * Begins or continues processing of the current burrow command.
@@ -338,7 +376,7 @@ void burrow_cancel(burrow_st *burrow);
  *
  * @param burrow Burrow object
  */
-void burrow_process(burrow_st *burrow);
+burrow_result_t burrow_process(burrow_st *burrow);
 
 /**
  * Notify burrow that an event has occurred on a given file descriptor.
@@ -349,5 +387,5 @@ void burrow_process(burrow_st *burrow);
  * @param fd Which file descriptor
  * @param event Which event(s) occurred
  */
-void burrow_event_raised(burrow_st *burrow, burrow_fd_t fd, burrow_event_t event);
+burrow_result_t burrow_event_raised(burrow_st *burrow, burrow_fd_t fd, burrow_event_t event);
 
