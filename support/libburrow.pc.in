@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libburrow
+Description: Burrow Client Library
+Version: @VERSION@
+Libs: -L${libdir} -lburrow
+Cflags: -I${includedir}

@@ -30,27 +30,6 @@ void burrow_default_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
     pfd->events |= POLLOUT;
 }
 
-
-burrow_result_t burrow_get_message(burrow_st *burrow, char *account, char *queue, char *msgid)
-{
-  if (burrow->state != BURROW_STATE_IDLE) {
-    burrow_log_error("burrow_get_message: burrow not in an idle state")
-    return BURROW_ERROR_NOT_READY;
-  }
-  
-  burrow->cmd.command = BURROW_CMD_GET_MESSAGE;
-  burrow->cmd.account = account;
-  burrow->cmd.queue = queue;
-  burrow->cmd.message_id = msgid;
-  
-  burrow->state = BURROW_STATE_START;
-
-  if (burrow->options & BURROW_OPT_AUTOPROCESS)
-    return burrow_process(burrow);
-
-  return BURROW_OK;
-}
-
 burrow_result_t burrow_start_command(burrow_st *burrow)
 {
   void *context = burrow->backend_context;
@@ -361,6 +340,8 @@ ssize_t burrow_size(char *backend)
 burrow_st *burrow_clone(burrow_st *dest, burrow_st *src)
 {
   /* this is tricky.... TODO: think this through w/r/t appended backends! */
+  (void) dest;
+  (void) src;
   return NULL;
 }
  
@@ -491,3 +472,24 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func)
   burrow->free_fn = callback;
 }
 
+
+
+burrow_result_t burrow_get_message(burrow_st *burrow, const char *account, const char *queue, const char *msgid)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error("burrow_get_message: burrow not in an idle state")
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_GET_MESSAGE;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.message_id = msgid;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
