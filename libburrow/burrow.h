@@ -24,12 +24,9 @@
 #include <sys/types.h>
 #include <poll.h>
 
-#include <libdrizzle/visibility.h>
-#include <libdrizzle/constants.h>
-#include <libdrizzle/structs.h>
-#include <libdrizzle/conn.h>
-#include <libdrizzle/result.h>
-#include <libdrizzle/column.h>
+#include <libburrow/visibility.h>
+#include <libburrow/constants.h>
+#include <libburrow/structs.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -200,7 +197,7 @@ void burrow_set_complete_fn(burrow_st *burrow, burrow_complete_fn *callback);
  * @param burrow Burrow object
  * @param callback Pointer to event-wait function
  */
-void burrow_set_event_wait_fn(burrow_st *burrow, burrow_event_wait_fn *callback);
+void burrow_set_watch_fd_fn(burrow_st *burrow, burrow_watch_fd_fn *callback);
 
 /**
  * Sets the malloc function burrow uses to allocate memory. Defaults to malloc.
@@ -241,7 +238,7 @@ burrow_result_t burrow_create_message(burrow_st *burrow,
                                       const char *queue, 
                                       const char *message_id,
                                       const uint8_t *body,
-                                      size_t body_size
+                                      size_t body_size,
                                       const burrow_attributes_st *attributes);
 
 
@@ -424,7 +421,7 @@ burrow_result_t burrow_process(burrow_st *burrow);
  * @param fd Which file descriptor
  * @param event Which event(s) occurred
  */
-burrow_result_t burrow_event_raised(burrow_st *burrow, burrow_fd_t fd, burrow_event_t event);
+burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
 
 #ifdef  __cplusplus
 }

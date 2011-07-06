@@ -46,7 +46,7 @@ struct burrow_command_st
   char *queue;
   char *message_id;
   uint8_t *body;
-  size_t *body_len;
+  size_t *body_size;
   burrow_filters_st *filters;
   burrow_attributes_st *attributes;
 };

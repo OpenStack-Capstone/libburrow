@@ -1,38 +1,39 @@
+#include "common.h"
 
 /* Functions visible to the backend: */
 
-void burrow_default_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
+static void burrow_default_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
   uint32_t count;
-  short evtemp;
 
-  count = burrow->watch_count + 1;
+  count = burrow->watch_size + 1;
 
-  if (burrow->pfds_count < count) {
+  if (burrow->pfds_size < count) {
     pfd = realloc(burrow->pfds, count * sizeof(struct pollfd));
     if (!pfd) {
       /* raise error */
       return;
     }
     burrow->pfds = pfd;
-    burrow->pfds_count = count;
+    burrow->pfds_size = count;
   }
 
-  burrow->watch_count = count;
+  burrow->watch_size = count;
 
-  pfd = burrow->pfds[count-1];
+  pfd = &burrow->pfds[count-1];
   pfd->fd = fd;
   pfd->events = 0;
-  if (events & BURROW_IOEVENTS_READ)
+  if (events & BURROW_IOEVENT_READ)
     pfd->events |= POLLIN;
-  if (events & BURROW_IOEVENTS_WRITE)
+  if (events & BURROW_IOEVENT_WRITE)
     pfd->events |= POLLOUT;
 }
 
-burrow_result_t burrow_start_command(burrow_st *burrow)
+static burrow_result_t burrow_start_command(burrow_st *burrow)
 {
   void *context = burrow->backend_context;
+  burrow_command_st *cmd = &burrow->cmd;
   
   switch(cmd->command) {
     case BURROW_CMD_GET_ACCOUNTS:
@@ -57,17 +58,75 @@ burrow_result_t burrow_start_command(burrow_st *burrow)
       return burrow->backend->delete_messages(context, cmd->account, cmd->queue, cmd->filters);
 
     case BURROW_CMD_GET_MESSAGE:
-      return burrow->backend->get_message(context, cmd->account, cmd->queue, cmd->message_id);
+      return burrow->backend->get_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->filters);
     
     case BURROW_CMD_UPDATE_MESSAGE:
-      return burrow->backend->update_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->attributes);
+      return burrow->backend->update_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->attributes, cmd->filters);
     
     case BURROW_CMD_DELETE_MESSAGE:
-      return burrow->backend->delete_message(context, cmd->account, cmd->queue, cmd->message_id);
+      return burrow->backend->delete_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->filters);
 
     case BURROW_CMD_CREATE_MESSAGE:
       return burrow->backend->create_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->body, cmd->body_size, cmd->attributes);
+
+    default:
+      /* log error */
+      return BURROW_ERROR_UNSUPPORTED;
   }
+}
+
+static void burrow_poll_fds(burrow_st *burrow)
+{
+  int count, watch_size;
+  struct pollfd *pfd, *last_pfd;
+  
+  if (burrow->watch_size == 0) /* nothing to watch */
+    return;
+
+  count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
+  if (count == -1) {
+    /* TODO: something sensible here, handling errno */
+    return;
+  }
+  if (count == 0) {
+    /* Timeout has occurred */
+    /* TODO: something sensible here */
+    /* maybe cancel the current command? */
+    return;
+  }
+  pfd = burrow->pfds;
+  
+  watch_size = burrow->watch_size;
+  while(count) {
+    if (pfd->revents) { /* Found a live event */
+      
+      /* Dispatch it: */
+      burrow_ioevent_t event = BURROW_IOEVENT_NONE;      
+      if (pfd->revents & POLLIN)
+        event |= BURROW_IOEVENT_READ;
+      if (pfd->revents & POLLOUT)
+        event |= BURROW_IOEVENT_WRITE;
+      burrow_raise_event(buffow, pfd->fd, event);
+
+      /* And copy the last pfd to this location */
+      count--;
+      watch_size--;
+      last_pfd = burrow->pfds[watch_size - 1];
+      
+      /* But not if we're at the last pfd entry */
+      if (last_pfd > pfd) {
+        pfd->fd = last_pfd->fd;
+        pfd->events = last_pfd->events;
+        pfd->revents = last_pfd->revents;
+      }
+      /* Note that we don't increment pfd here, because this location
+         now has new data */
+    }
+    else
+      pfd++;
+  }
+  burrow->watch_size = watch_size;
+  return;
 }
 
 
@@ -121,59 +180,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
 }
 
 
-void burrow_poll_fds(burrow_st *burrow)
-{
-  int count, watch_size;
-  struct pollfd *pfd, *last_pfd;
-  
-  if (burrow->watch_size == 0) /* nothing to watch */
-    return;
 
-  count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
-  if (count == -1) {
-    /* TODO: something sensible here, handling errno */
-    return;
-  }
-  if (count == 0) {
-    /* Timeout has occurred */
-    /* TODO: something sensible here */
-    /* maybe cancel the current command? */
-    return;
-  }
-  pfd = burrow->pfds;
-  
-  watch_size = burrow->watch_size;
-  while(count) {
-    if (pfd->revents) { /* Found a live event */
-      
-      /* Dispatch it: */
-      burrow_ioevent_t event = BURROW_IOEVENT_NONE;      
-      if (pfd->revents & POLLIN)
-        event |= BURROW_IOEVENT_READ;
-      if (pfd->revents & POLLOUT)
-        event |= BURROW_IOEVENT_WRITE;
-      burrow_raise_event(buffow, pfd->fd, event);
-
-      /* And copy the last pfd to this location */
-      count--;
-      watch_size--;
-      last_pfd = burrow->pfds[watch_size - 1];
-      
-      /* But not if we're at the last pfd entry */
-      if (last_pfd > pfd) {
-        pfd->fd = last_pfd->fd;
-        pfd->events = last_pfd->events;
-        pfd->revents = last_pfd->revents;
-      }
-      /* Note that we don't increment pfd here, because this location
-         now has new data */
-    }
-    else
-      pfd++;
-  }
-  burrow->watch_size = watch_size;
-  return;
-}
 
 
 void burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
@@ -303,8 +310,14 @@ void burrow_free(burrow_st *burrow)
 {
   /* TODO: more */
   burrow->backend->free((void*)(burrow+1));
-  if (burrow->flags & BURROW_FLAG_SELFALLOCATED)
+  if (burrow->pfds != NULL) {
+    burrow->free_fn(burrow, burrow->pfds);
+    burrow->pfds = NULL;
+  }
+    
+  if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
     free(burrow)
+  }
 }
 
 /**
