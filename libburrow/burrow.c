@@ -13,9 +13,9 @@
  * @brief Burrow user/frontend functions
  */
 
-#include <stdio.h>
 
 #include "common.h"
+#include <stdio.h>
 
 /* Functions visible to the backend: */
 
@@ -95,7 +95,8 @@ static burrow_result_t burrow_start_command(burrow_st *burrow)
 
 static void burrow_poll_fds(burrow_st *burrow)
 {
-  int count, watch_size;
+  int count;
+  uint32_t watch_size;
   struct pollfd *pfd, *last_pfd;
   
   if (burrow->watch_size == 0) /* nothing to watch */
@@ -314,14 +315,11 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
     /* We allocate to include the backend just after the base
        burrow struct */
     
-    burrow_log_debug(NULL, "burrow_create: self-allocating burrow structure");
     burrow = malloc(sizeof(burrow_st) + backend_fns->size());
     if (!burrow)
       return NULL;
-    burrow_log_debug(NULL, "burrow_create: self-allocation succeeded");
     burrow->flags = BURROW_FLAG_SELFALLOCATED;
   } else {
-    burrow_log_debug(NULL, "burrow_create: initializing user-provided structure");
     burrow->flags = 0;
   }
   
@@ -376,7 +374,7 @@ ssize_t burrow_size(const char *backend)
   if (!backend_fns)
     return -1;
     
-  return sizeof(burrow_st) + backend_fns->size();
+  return (ssize_t)(sizeof(burrow_st) + backend_fns->size());
 }
 
 /**
