@@ -14,17 +14,21 @@
  */
 
 #include <libburrow/burrow.h>
+#include <time.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 struct burrow_backend_dummy_st
 {
   int selfallocated;
-  burrow_st burrow;
+  burrow_st *burrow;
 
   char *account;
   char *queue;
   char *message_id;
   uint8_t *body;
-  size_t body_size;
+  ssize_t body_size;
   time_t ttl;
   time_t hide;
 };
@@ -37,7 +41,7 @@ static void dummy_free_internals(burrow_backend_dummy_st *dummy)
     dummy->burrow->free_fn(dummy->burrow, dummy->account);
   if (dummy->queue)
     dummy->burrow->free_fn(dummy->burrow, dummy->queue);
-  if (dummy->messge_id)
+  if (dummy->message_id)
     dummy->burrow->free_fn(dummy->burrow, dummy->message_id);
   if (dummy->body)
     dummy->burrow->free_fn(dummy->burrow, dummy->body);
@@ -83,10 +87,11 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
     break;
   case BURROW_DETAIL_ALL:
   case BURROW_DETAIL_UNSET:
+  case BURROW_DETAIL_NONE: /* suppress compiler warning */
   default:
     break;
   }
-  dummy->burrow->callbacks->message(dummy->burrow, id, body, body_size, attrptr);
+  dummy->burrow->message_fn(dummy->burrow, id, body, body_size, attrptr);
 }
 
 static int search_matches(burrow_backend_dummy_st *dummy, const char *account, const char *queue, const char *message, const burrow_filters_st *filters)
@@ -105,7 +110,7 @@ static int search_matches(burrow_backend_dummy_st *dummy, const char *account, c
     return 0;
   
   if (!account || !queue || !message
-      && (!filters || filters->limit > 0))
+      || (filters && filters->limit == 0))
     return 1; /* always match */
   
   if ((account && !strcmp(account, dummy->account))
@@ -116,10 +121,7 @@ static int search_matches(burrow_backend_dummy_st *dummy, const char *account, c
   return 0;
 }
 
-
-
-
-void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
+static void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st*)ptr;
   
@@ -142,7 +144,7 @@ void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
   dummy->hide = 0;
 }
 
-void burrow_backend_dummy_free(void *ptr)
+static void burrow_backend_dummy_free(void *ptr)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   
@@ -152,12 +154,12 @@ void burrow_backend_dummy_free(void *ptr)
     dummy->burrow->free_fn(dummy->burrow, ptr);
 }
 
-size_t burrow_backend_dummy_size()
+static size_t burrow_backend_dummy_size(void)
 {
   return sizeof(burrow_backend_dummy_st);
 }
 
-void *burrow_backend_dummy_clone(void *dst, void *src)
+static void *burrow_backend_dummy_clone(void *dst, void *src)
 {
   (void) dst;
   (void) src;
@@ -166,26 +168,27 @@ void *burrow_backend_dummy_clone(void *dst, void *src)
   return NULL;
 }
 
-void burrow_backend_set_option(void *ptr, const char *key, const char *value)
+static burrow_result_t burrow_backend_dummy_set_option(void *ptr, const char *key, const char *value)
 {
   (void) ptr;
   (void) key;
   (void) value;
+  return BURROW_ERROR_UNSUPPORTED;
 }
 
-void burrow_backend_dummy_cancel(void *ptr)
+static void burrow_backend_dummy_cancel(void *ptr)
 {
   (void) ptr;
 }
 
-burrow_result_t burrow_backend_dummy_process(void *ptr)
+static burrow_result_t burrow_backend_dummy_process(void *ptr)
 {
   (void) ptr;
   return BURROW_OK;
 }
 
 
-burrow_result_t burrow_backend_dummy_event_raised(void *ptr, int fd, burrow_ioevent_t event)
+static burrow_result_t burrow_backend_dummy_event_raised(void *ptr, int fd, burrow_ioevent_t event)
 {
   (void) ptr;
   (void) fd;
@@ -194,37 +197,39 @@ burrow_result_t burrow_backend_dummy_event_raised(void *ptr, int fd, burrow_ioev
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_get_accounts(void *ptr, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_get_accounts(void *ptr, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   
   if (!search_matches(dummy, NULL, NULL, NULL, filters))
     return BURROW_OK;
     
-  dummy->burrow->callback->accounts(dummy->burrow, &dummy->account, 1);
+  dummy->burrow->accounts_fn(dummy->burrow, &dummy->account, 1);
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_delete_accounts(void *ptr, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_delete_accounts(void *ptr, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
+  
+  (void) filters;
   
   dummy_free_internals(dummy);
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_get_queues(void *ptr, const char *account, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_get_queues(void *ptr, const char *account, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   
   if (!search_matches(dummy, account, NULL, NULL, filters))
     return BURROW_OK;
 
-  dummy->burrow->callback->queues(dummy->burrow, &dummy->queue, 1);
+  dummy->burrow->queues_fn(dummy->burrow, &dummy->queue, 1);
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_delete_queues(void *ptr, const char *account, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_delete_queues(void *ptr, const char *account, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
 
@@ -235,7 +240,7 @@ burrow_result_t burrow_backend_dummy_delete_queues(void *ptr, const char *accoun
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_get_messages(void *ptr, const char *account, const char *queues, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_get_messages(void *ptr, const char *account, const char *queues, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
@@ -247,7 +252,7 @@ burrow_result_t burrow_backend_dummy_get_messages(void *ptr, const char *account
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_delete_messages(void *ptr, const char *account, const char *queues, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_delete_messages(void *ptr, const char *account, const char *queues, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
 
@@ -258,7 +263,7 @@ burrow_result_t burrow_backend_dummy_delete_messages(void *ptr, const char *acco
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const char *account, const char *queues, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const char *account, const char *queues, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ATTRIBUTES : BURROW_DETAIL_ATTRIBUTES);
@@ -284,7 +289,7 @@ burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const char *acco
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *account, const char *queues, const char *message_id, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *account, const char *queues, const char *message_id, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
@@ -296,19 +301,19 @@ burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *account,
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const char *account, const char *queues, const char *message_id, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const char *account, const char *queues, const char *id, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
-  burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
-
-  if (!search_matches(dummy, account, queues, message_id, NULL))
+  (void) filters;
+  
+  if (!search_matches(dummy, account, queues, id, NULL))
     return BURROW_OK;
 
   dummy_free_internals(dummy);
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_update_message(void *ptr, const char *account, const char *queues, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_update_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ATTRIBUTES : BURROW_DETAIL_ATTRIBUTES);
@@ -317,7 +322,7 @@ burrow_result_t burrow_backend_dummy_update_message(void *ptr, const char *accou
   if (!attributes)
     return BURROW_OK;
   
-  if (!search_matches(dummy, account, queues, message_id, filters))
+  if (!search_matches(dummy, account, queue, id, filters))
     return BURROW_OK;
     
   if (attributes->ttl > -1)
@@ -334,7 +339,7 @@ burrow_result_t burrow_backend_dummy_update_message(void *ptr, const char *accou
   return BURROW_OK;
 }
 
-burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char *account, const char *queues, const char *id, const uint8_t *body, size_t body_size, const burrow_attributes_st *attributes)
+static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char *account, const char *queue, const char *id, const uint8_t *body, size_t body_size, const burrow_attributes_st *attributes)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
 
@@ -345,11 +350,8 @@ burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char *accou
 
   time_t curtime = time(NULL);
   
-
-//  dummy_free_internals(dummy);
-  
   /* most likely malloc to fail */
-  body_copy = dummy->burrow->malloc_fn(dummy->burrow, body_len);
+  body_copy = dummy->burrow->malloc_fn(dummy->burrow, body_size);
   id_copy = dummy->burrow->malloc_fn(dummy->burrow, strlen(id) + 1);
   account_copy = dummy->burrow->malloc_fn(dummy->burrow, strlen(account) + 1);
   queue_copy = dummy->burrow->malloc_fn(dummy->burrow, strlen(queue) + 1);
@@ -367,7 +369,7 @@ burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char *accou
 
   strcpy(account_copy, account);
   strcpy(queue_copy, queue);
-  strcpy(id_copy, message_id);
+  strcpy(id_copy, id);
   memcpy(body_copy, body, body_size * sizeof(uint8_t));
 
   dummy->account = account_copy;
@@ -416,7 +418,7 @@ burrow_backend_functions_st burrow_backend_dummy_functions = {
   .get_message = &burrow_backend_dummy_get_message,
   .update_message = &burrow_backend_dummy_update_message,
   .delete_message = &burrow_backend_dummy_delete_message,
-  .create_message = &burrow_backend_dummy_create_message
+  .create_message = &burrow_backend_dummy_create_message,
 
   .process = &burrow_backend_dummy_process,
 };

@@ -38,7 +38,8 @@ MAINTAINERCLEANFILES = \
 
 lib_LTLIBRARIES += libburrow.la
 libburrow_la_SOURCES = \
-	libburrow/burrow.c
+	libburrow/burrow.c \
+	libburrow/backends/dummy/dummy.c
 
 nobase_include_HEADERS += \
 	libburrow/burrow.h \

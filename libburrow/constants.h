@@ -127,9 +127,9 @@ typedef void (burrow_message_fn)(burrow_st *burrow,
                                  ssize_t body_size,
                                  const burrow_attributes_st *attributes);
 
-typedef void (burrow_queues_fn)(burrow_st *burrow, const char **queues, size_t size);
+typedef void (burrow_queues_fn)(burrow_st *burrow, char **queues, size_t size);
 
-typedef void (burrow_accounts_fn)(burrow_st *burrow, const char **accounts, size_t size);
+typedef void (burrow_accounts_fn)(burrow_st *burrow, char **accounts, size_t size);
 
 typedef void (burrow_log_fn)(burrow_st *burrow, burrow_verbose_t verbose, const char *msg);
 
@@ -166,7 +166,7 @@ typedef burrow_result_t (burrow_update_messages_fn)(void *backend, const char *a
 typedef burrow_result_t (burrow_get_message_fn)(void *backend, const char *account, const char *queue, const char *id, const burrow_filters_st *filters);
 typedef burrow_result_t (burrow_update_message_fn)(void *backend, const char *account, const char *queue, const char *id, const burrow_attributes_st *attributes, const burrow_filters_st *filters);
 typedef burrow_result_t (burrow_delete_message_fn)(void *backend, const char *account, const char *queue, const char *id, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_create_message_fn)(void *backend, const char *account, const char *queue, const char *id, const uint8_t *body, size_t *body_len, const burrow_attributes_st *attributes);
+typedef burrow_result_t (burrow_create_message_fn)(void *backend, const char *account, const char *queue, const char *id, const uint8_t *body, size_t body_size, const burrow_attributes_st *attributes);
 
 #ifdef __cplusplus
 }

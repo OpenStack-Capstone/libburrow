@@ -241,7 +241,7 @@ static void burrow_default_message_fn(burrow_st *burrow,
   burrow_log_info(burrow, "Message received, but message callback function undefined.");
 }
 
-static void burrow_default_queues_fn(burrow_st *burrow, const char **queues, size_t size)
+static void burrow_default_queues_fn(burrow_st *burrow, char **queues, size_t size)
 {
   (void) burrow;
   (void) queues;
@@ -249,7 +249,7 @@ static void burrow_default_queues_fn(burrow_st *burrow, const char **queues, siz
   burrow_log_info(burrow, "Queues received, but queues callback function undefined.");
 }
 
-static void burrow_default_accounts_fn(burrow_st *burrow, const char **accounts, size_t size)
+static void burrow_default_accounts_fn(burrow_st *burrow, char **accounts, size_t size)
 {
   (void) burrow;
   (void) accounts;
