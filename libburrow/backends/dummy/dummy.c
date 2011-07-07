@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* Backend state struct */
 struct burrow_backend_dummy_st
 {
   int selfallocated;
@@ -35,18 +36,19 @@ struct burrow_backend_dummy_st
 
 typedef struct burrow_backend_dummy_st burrow_backend_dummy_st;
 
+/* Cleans up everything we've allocated */
 static void dummy_free_internals(burrow_backend_dummy_st *dummy)
 {
-  if (dummy->account)
-    dummy->burrow->free_fn(dummy->burrow, dummy->account);
-  if (dummy->queue)
-    dummy->burrow->free_fn(dummy->burrow, dummy->queue);
-  if (dummy->message_id)
-    dummy->burrow->free_fn(dummy->burrow, dummy->message_id);
-  if (dummy->body)
-    dummy->burrow->free_fn(dummy->burrow, dummy->body);
+  /* free_fn can be assumed to accept NULL values without error */
+  dummy->burrow->free_fn(dummy->burrow, dummy->account);
+  dummy->burrow->free_fn(dummy->burrow, dummy->queue);
+  dummy->burrow->free_fn(dummy->burrow, dummy->message_id);
+  dummy->burrow->free_fn(dummy->burrow, dummy->body);
 }
 
+/* Calls the user's message callback with the specified detail level;
+   also checks if the message has expired before sending it back,
+   in case filtering was otherwise ignored */
 static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t detail)
 {
   char *id = dummy->message_id;
@@ -64,6 +66,11 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
   if (dummy->ttl < curtime)
     return; /* message has expired */
   
+  /* Note that .ttl and .hide fields are represented to the user as
+     relative time deltas, not absolute values when the message will
+     expire/go visible. Internally, we use absolute time values, so
+     we have to correct for this. */
+
   /* The differences should be within 32 bits, but time_t may not be signed, so we do this: */
   attr.ttl = (int32_t)((int64_t)dummy->ttl - (int64_t)curtime);
   if (dummy->hide != 0 && dummy->hide < curtime) {
@@ -73,15 +80,15 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
   
   switch(detail)
   {
-  case BURROW_DETAIL_ID:
+  case BURROW_DETAIL_ID: /* only the id is filled out */
     body = NULL;
     body_size = -1;
     attrptr = NULL;
     break;
-  case BURROW_DETAIL_BODY:
+  case BURROW_DETAIL_BODY: /* only the body and body size are filled out */
     attrptr = NULL;
     break;
-  case BURROW_DETAIL_ATTRIBUTES:
+  case BURROW_DETAIL_ATTRIBUTES: /* the body isn't filled out */
     body = NULL;
     body_size = -1;
     break;
@@ -94,6 +101,11 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
   dummy->burrow->message_fn(dummy->burrow, id, body, body_size, attrptr);
 }
 
+/* General-purpose function to see if the user's query matches the
+   account, queue and message_id, taking into account ttl, hide and filters */
+/* Any null parameters will be considered to be wildcards, except
+   for filters, which will be assumed to be limit=infinite, match_hidden = false */
+/* Returns 1 if user query matches, 0 otherwise */
 static int search_matches(burrow_backend_dummy_st *dummy, const char *account, const char *queue, const char *message, const burrow_filters_st *filters)
 {
   time_t curtime;
@@ -200,10 +212,12 @@ static burrow_result_t burrow_backend_dummy_event_raised(void *ptr, int fd, burr
 static burrow_result_t burrow_backend_dummy_get_accounts(void *ptr, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
-  
+
   if (!search_matches(dummy, NULL, NULL, NULL, filters))
     return BURROW_OK;
-    
+
+  /* Note that the second parameter is an array of char *s, so we have to
+     get the address of our single account value for this to work */
   dummy->burrow->accounts_fn(dummy->burrow, &dummy->account, 1);
   return BURROW_OK;
 }
@@ -211,7 +225,7 @@ static burrow_result_t burrow_backend_dummy_get_accounts(void *ptr, const burrow
 static burrow_result_t burrow_backend_dummy_delete_accounts(void *ptr, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
-  
+  /* filters parameter unused here */
   (void) filters;
   
   dummy_free_internals(dummy);
@@ -225,6 +239,8 @@ static burrow_result_t burrow_backend_dummy_get_queues(void *ptr, const char *ac
   if (!search_matches(dummy, account, NULL, NULL, filters))
     return BURROW_OK;
 
+  /* Note that the second parameter is an array of char *s, so we have to
+     get the address of our single queue value for this to work */
   dummy->burrow->queues_fn(dummy->burrow, &dummy->queue, 1);
   return BURROW_OK;
 }
@@ -243,6 +259,7 @@ static burrow_result_t burrow_backend_dummy_delete_queues(void *ptr, const char 
 static burrow_result_t burrow_backend_dummy_get_messages(void *ptr, const char *account, const char *queues, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
+  /* get_messages default detail is DETAIL_ALL */
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
   
   if (!search_matches(dummy, account, queues, NULL, filters))
@@ -266,6 +283,7 @@ static burrow_result_t burrow_backend_dummy_delete_messages(void *ptr, const cha
 static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const char *account, const char *queues, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
+  /* update_messages default detail is DETAIL_ATTRIBUTES */
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ATTRIBUTES : BURROW_DETAIL_ATTRIBUTES);
   time_t curtime = time(NULL);
 
@@ -292,6 +310,7 @@ static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const cha
 static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *account, const char *queues, const char *message_id, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
+  /* get_message default detail is DETAIL_ALL */
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
   
   if (!search_matches(dummy, account, queues, message_id, NULL))
@@ -304,6 +323,7 @@ static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *a
 static burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const char *account, const char *queues, const char *id, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
+  /* filters parameter unused here */
   (void) filters;
   
   if (!search_matches(dummy, account, queues, id, NULL))
@@ -316,6 +336,7 @@ static burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const char
 static burrow_result_t burrow_backend_dummy_update_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
+  /* update_message default detail is DETAIL_ATTRIBUTES */
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ATTRIBUTES : BURROW_DETAIL_ATTRIBUTES);
   time_t curtime = time(NULL);
 
@@ -350,7 +371,7 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char
 
   time_t curtime = time(NULL);
   
-  /* most likely malloc to fail */
+  /* alloc body first: most likely malloc to fail */
   body_copy = dummy->burrow->malloc_fn(dummy->burrow, body_size);
   id_copy = dummy->burrow->malloc_fn(dummy->burrow, strlen(id) + 1);
   account_copy = dummy->burrow->malloc_fn(dummy->burrow, strlen(account) + 1);
@@ -395,6 +416,9 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char
   return BURROW_OK;
 }
 
+/* This is the structure that the frontend will use to access our
+   internal functions. This is filled out in C99 style, which I think
+   is acceptable. We can, however, default to C90 style if req'd. */
 burrow_backend_functions_st burrow_backend_dummy_functions = {
   .create = &burrow_backend_dummy_create,
   .free = &burrow_backend_dummy_free,
@@ -422,9 +446,3 @@ burrow_backend_functions_st burrow_backend_dummy_functions = {
 
   .process = &burrow_backend_dummy_process,
 };
-
-
-
-
-
-
