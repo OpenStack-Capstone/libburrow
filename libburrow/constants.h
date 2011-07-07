@@ -21,6 +21,8 @@
 extern "C" {
 #endif
 
+#define BURROW_MAX_ERROR_SIZE 1024
+
 typedef enum {
   BURROW_STATE_IDLE,
   BURROW_STATE_START,
@@ -69,8 +71,8 @@ typedef enum {
   
 /* Internal flags */
 typedef enum {
-  BURROW_FLAG_PROCESSING    = (1 << 0),
-  BURROW_FLAG_SELFALLOCATED = (1 << 1),
+  BURROW_FLAG_SELFALLOCATED = (1 << 0),
+  BURROW_FLAG_PROCESSING    = (1 << 1),
   BURROW_FLAG_MAX           = (1 << 2)
 } burrow_flags_t; 
   
@@ -93,7 +95,6 @@ typedef enum {
 typedef enum {
   BURROW_OK = 0,
   BURROW_OK_WAITING,
-  BURROW_OK_COMPLETE,
   BURROW_ERROR_NOT_READY,
   BURROW_ERROR_MEMORY,
   BURROW_ERROR_CONNECTION,
@@ -117,7 +118,6 @@ typedef struct burrow_st burrow_st;
 
 /* Used internally */
 typedef struct burrow_command_st burrow_command_st;
-
 typedef struct burrow_backend_functions_st burrow_backend_functions_st;
 
 /* Function pointers for user callbacks */

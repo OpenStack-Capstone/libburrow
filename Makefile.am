@@ -39,7 +39,8 @@ MAINTAINERCLEANFILES = \
 lib_LTLIBRARIES += libburrow.la
 libburrow_la_SOURCES = \
 	libburrow/burrow.c \
-	libburrow/backends/dummy/dummy.c
+	libburrow/backends/dummy/dummy.c \
+	libburrow/attributes.c
 
 nobase_include_HEADERS += \
 	libburrow/burrow.h \
@@ -50,13 +51,13 @@ libburrow_la_CFLAGS = \
 	-DBUILDING_LIBBURROW
 
 libburrow_la_LIBADD = $(LIBDL_LIBS)
-libburrow_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBBURROW_LIBRARY_VERSION)
+libburrow_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBBURROW_VERSION)
 
 #
 # Simple libburrow application
 #
 
-#include config/pandora-plugin.am
+include config/pandora-plugin.am
 
 TESTS = $(check_PROGRAMS)
 

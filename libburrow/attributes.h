@@ -10,7 +10,7 @@
 
 /**
  * @file
- * @brief Attributes functions
+ * @brief Attribute function declarations
  */
 #ifndef __BURROW_ATTRIBUTES_H
 #define __BURROW_ATTRIBUTES_H
@@ -19,8 +19,11 @@
 extern "C" {
 #endif
 
-burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest);
-size_t burrow_attributes_size();
+/* TODO: doxygen this sucker! */
+
+/* TODO: should these be reversed? burrow first? */
+burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burrow_st *burrow);
+size_t burrow_attributes_size(void);
 burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const burrow_attributes_st *src);
 void burrow_attributes_free(burrow_attributes_st *attributes);
 

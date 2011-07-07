@@ -19,7 +19,7 @@ PANDORA_CANONICAL_TARGET(ignore-shared-ptr)
 LIBBURROW_VERSION_CURRENT=0
 
 # Increment if source code has changed, set to zero if current is incremented.
-LIBBURROW_VERSION_REVISION=0
+LIBBURROW_VERSION_REVISION=1
 
 # Increment if interfaces have been added, set to zero if interfaces have been
 # removed or changed.

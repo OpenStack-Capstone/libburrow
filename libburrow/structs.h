@@ -26,6 +26,12 @@ struct burrow_attributes_st
 {
   int32_t ttl; /* -1: not set */
   int32_t hide; /* -1: not set */
+  
+  /* These may or may not be required for memory management, and
+     are only a front-end concern. */
+  burrow_st *burrow;
+  burrow_attributes_st *next;
+  burrow_attributes_st *prev;
 };
 
 /* Existence public, internals not */
@@ -35,7 +41,13 @@ struct burrow_filters_st
   int32_t limit; /* -1, not set */
   char *marker;  /* NULL, not set */
   burrow_detail_t detail; /* BURROW_DETAIL_UNSET -- not set */
-  int32_t wait;
+  int32_t wait; /* -1, not set */
+
+  /* These may or may not be required for memory management, and
+     are only a front-end concern. */
+  burrow_st *burrow;
+  burrow_attributes_st *next;
+  burrow_attributes_st *prev;
 };
 
 /* Private */
@@ -46,7 +58,7 @@ struct burrow_command_st
   const char *queue;
   const char *message_id;
   const uint8_t *body;
-  ssize_t body_size;
+  size_t body_size;
   const burrow_filters_st *filters;
   const burrow_attributes_st *attributes;
 };
@@ -74,9 +86,12 @@ struct burrow_st {
   void *backend_context;
   
   uint32_t watch_size;
-  uint32_t timeout;
+  int32_t timeout;
   uint32_t pfds_size;
   struct pollfd *pfds;
+  
+  burrow_attributes_st *attributes_list;
+  burrow_filters_st *filters_list;
 };
 
 struct burrow_backend_functions_st {

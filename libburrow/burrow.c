@@ -1,17 +1,38 @@
+/*
+ * libburrow -- Burrow Client Library
+ *
+ * Copyright (C) 2011 Tony Wooster (twooster@gmail.com)
+ * All rights reserved.
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in this directory for full text.
+ */
+
+/**
+ * @file
+ * @brief Burrow user/frontend functions
+ */
+
+
 #include "common.h"
 
 /* Functions visible to the backend: */
-
-void burrow_log_error(burrow_st *burrow, const char *msg, ...);
 
 void burrow_log_info(burrow_st *burrow, const char *msg, ...);
 
 void burrow_log_debug(burrow_st *burrow, const char *msg, ...);
 
-burrow_backend_functions_st *burrow_backend_load_functions(const char *backend);
+void burrow_log_warn(burrow_st *burrow, const char *msg, ...);
 
+void burrow_log_error(burrow_st *burrow, const char *msg, ...);
 
-static void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent_t events)
+void burrow_log_fatal(burrow_st *burrow, const char *msg, ...);
+
+void burrow_fatal(burrow_st *burrow, const char *msg, ...);
+
+void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...);
+
+void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
   uint32_t count;
@@ -238,7 +259,7 @@ static void burrow_default_message_fn(burrow_st *burrow,
   (void) body;
   (void) body_size;
   (void) attributes;
-  burrow_log_info(burrow, "Message received, but message callback function undefined.");
+  burrow_log_info(burrow, "burrow_default_message_fn: called, msgid: '%s', body size %d", message_id, body_size);
 }
 
 static void burrow_default_queues_fn(burrow_st *burrow, char **queues, size_t size)
@@ -246,7 +267,7 @@ static void burrow_default_queues_fn(burrow_st *burrow, char **queues, size_t si
   (void) burrow;
   (void) queues;
   (void) size;
-  burrow_log_info(burrow, "Queues received, but queues callback function undefined.");
+  burrow_log_info(burrow, "burrow_default_queues_fn: called, %u queues", size);
 }
 
 static void burrow_default_accounts_fn(burrow_st *burrow, char **accounts, size_t size)
@@ -254,13 +275,13 @@ static void burrow_default_accounts_fn(burrow_st *burrow, char **accounts, size_
   (void) burrow;
   (void) accounts;
   (void) size;
-  burrow_log_info(burrow, "Accounts received, but accounts callback function undefined.");
+  burrow_log_info(burrow, "burrow_default_accounts_fn: called, %u accounts", size);
 }
 
 static void burrow_default_complete_fn(burrow_st *burrow)
 {
   (void) burrow;
-  burrow_log_info(burrow, "Command complete, but complete callback function undefined.");
+  burrow_log_info(burrow, "burrow_default_complete_fn: called");
 }
 
 static void *burrow_default_malloc_fn(burrow_st *burrow, size_t size)
@@ -322,6 +343,9 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   burrow->pfds_size = 0;
   burrow->watch_size = 0;
   burrow->timeout = 60;
+  
+  burrow->attributes_list = NULL;
+  burrow->filters_list = NULL;
 
   return burrow;
 }

@@ -27,6 +27,7 @@
 #include <libburrow/visibility.h>
 #include <libburrow/constants.h>
 #include <libburrow/structs.h>
+#include <libburrow/attributes.h>
 
 #ifdef  __cplusplus
 extern "C" {
