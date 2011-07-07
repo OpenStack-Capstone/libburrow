@@ -13,6 +13,8 @@
  * @brief Burrow user/frontend functions
  */
 
+#include <stdio.h>
+
 #include "common.h"
 
 /* Functions visible to the backend: */
@@ -281,11 +283,23 @@ static void burrow_default_free_fn(burrow_st *burrow, void *ptr)
   free(ptr);
 }
 
+const char *_error_strings[] = {
+  "***NONE***", /* BURROW_VERBOSE_NONE, */
+  "FATAL", /* BURROW_VERBOSE_FATAL, */
+  "ERROR", /* BURROW_VERBOSE_ERROR, */
+  "WARN", /* BURROW_VERBOSE_WARN, */
+  "INFO", /* BURROW_VERBOSE_INFO, */
+  "DEBUG", /* BURROW_VERBOSE_DEBUG, */
+  "***MAX***", /* BURROW_VERBOSE_MAX */  
+};
+
 static void burrow_default_log_fn(burrow_st *burrow, burrow_verbose_t verbose, const char *msg)
 {
   (void) burrow;
   (void) verbose;
   (void) msg;
+  printf("log");
+//  printf("libburrow(%s): %s\n", _error_strings[verbose], msg);
 }
 
 burrow_st *burrow_create(burrow_st *burrow, const char *backend)
@@ -299,12 +313,17 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   if (!burrow) {
     /* We allocate to include the backend just after the base
        burrow struct */
+    
+    burrow_log_debug(NULL, "burrow_create: self-allocating burrow structure");
     burrow = malloc(sizeof(burrow_st) + backend_fns->size());
     if (!burrow)
       return NULL;
+    burrow_log_debug(NULL, "burrow_create: self-allocation succeeded");
     burrow->flags = BURROW_FLAG_SELFALLOCATED;
-  } else
+  } else {
+    burrow_log_debug(NULL, "burrow_create: initializing user-provided structure");
     burrow->flags = 0;
+  }
   
   burrow->options = 0;
   burrow->verbose = BURROW_VERBOSE_ERROR;
@@ -482,4 +501,52 @@ burrow_result_t burrow_get_message(burrow_st *burrow, const char *account, const
     return burrow_process(burrow);
 
   return BURROW_OK;
+}
+
+
+
+void burrow_log_info(burrow_st *burrow, const char *msg, ...)
+{
+  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_INFO) {
+    burrow->log_fn(burrow, BURROW_VERBOSE_INFO, msg);
+  }
+}
+
+void burrow_log_debug(burrow_st *burrow, const char *msg, ...)
+{
+  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_DEBUG) {
+    burrow->log_fn(burrow, BURROW_VERBOSE_DEBUG, msg);
+  }  
+}
+
+void burrow_log_warn(burrow_st *burrow, const char *msg, ...)
+{
+  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_WARN) {
+    burrow->log_fn(burrow, BURROW_VERBOSE_WARN, msg);
+  }  
+}
+
+void burrow_log_error(burrow_st *burrow, const char *msg, ...)
+{
+  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_ERROR) {
+    burrow->log_fn(burrow, BURROW_VERBOSE_ERROR, msg);
+  }  
+}
+
+void burrow_log_fatal(burrow_st *burrow, const char *msg, ...)
+{
+  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_FATAL) {
+    burrow->log_fn(burrow, BURROW_VERBOSE_FATAL, msg);
+  }  
+}
+
+void burrow_fatal(burrow_st *burrow, const char *msg, ...)
+{
+  burrow_log_fatal(burrow, msg);
+}
+
+void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...)
+{
+  (void) error;
+  burrow_log_error(burrow, msg);
 }

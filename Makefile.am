@@ -8,17 +8,15 @@
 # the COPYING file in this directory for full text.
 #
 
-ACLOCAL_AMFLAGS= -I m4
-LDADD=libburrow.la
+ACLOCAL_AMFLAGS = -I m4
+LDADD = libburrow.la
 
-bin_PROGRAMS =
-check_PROGRAMS =
-noinst_PROGRAMS =
+#bin_PROGRAMS =
+#noinst_PROGRAMS =
 lib_LTLIBRARIES =
-noinst_LTLIBRARIES =
+#noinst_LTLIBRARIES =
 nobase_include_HEADERS =
-noinst_HEADERS =
-pkgplugin_LTLIBRARIES =
+#pkgplugin_LTLIBRARIES =
 CLEANFILES =
 EXTRA_DIST = \
   docs/doxygen/Doxyfile \
@@ -41,12 +39,16 @@ libburrow_la_SOURCES = \
 	libburrow/burrow.c \
 	libburrow/backends/dummy/dummy.c \
 	libburrow/attributes.c \
-	libburrow/backends.h
+	libburrow/backends.c
 
 nobase_include_HEADERS += \
 	libburrow/burrow.h \
 	libburrow/visibility.h \
 	libburrow/attributes.h
+
+noinst_HEADERS = \
+	libburrow/common.h \
+	tests/common.h
 
 libburrow_la_CFLAGS = \
 	${AM_CFLAGS} \
@@ -89,6 +91,9 @@ check-strace:
 check-truss:
 	@LIBBURROW_TEST_PREFIX="truss -c" make check
 
+check_PROGRAMS = \
+	tests/burrow_attributes_st
+
 docs: all
 	@echo "/**" > docs/doxygen/mainpage.h
 	@echo "@mainpage README" >> docs/doxygen/mainpage.h
@@ -105,9 +110,9 @@ lcov: lcov-clean check
 	@echo "Make sure ./configure was run with '--enable-coverage'"
 	@echo "------------------------------------------------------"
 	@echo
-	cd project_name && lcov --directory . --base-directory .. --capture --output-file lcov.out
-	cd project_name && lcov --directory . --base-directory .. --extract lcov.out `pwd`/\* --output-file lcov_extract.out
-	genhtml -o lcov -t project_name project_name/lcov_extract.out
+	cd libburrow && lcov --directory . --base-directory .. --capture --output-file lcov.out
+	cd libburrow && lcov --directory . --base-directory .. --extract lcov.out `pwd`/\* --output-file lcov_extract.out
+	genhtml -o lcov -t libburrow libburrow/lcov_extract.out
 
 lcov-clean: clean
 	find . -name '*.gcno' -exec rm {} \;

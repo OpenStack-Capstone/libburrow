@@ -1,0 +1,53 @@
+Summary: Burrow Client Library
+Name: @PACKAGE@
+Version: @VERSION@
+Release: 1
+License: BSD
+Group: System Environment/Libraries
+BuildRequires: gcc gcc-c++
+URL: https://github.com/OpenStack-Capstone/libburrow
+Source: https://github.com/OpenStack-Capstone/libburrow%{version}/%{version}/+download/libburrow-%{version}.tar.gz
+BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+
+%description
+TODO: Burrow description
+
+%package devel
+Group: Development/Libraries
+Summary: Burrow Cleint Library - Header files
+Requires: %{name} = %{version}-%{release} 
+
+%description devel
+Development files for the Burrow Client Library
+
+%prep
+%setup -q
+
+%configure
+
+%build
+%{__make} %{_smp_mflags}
+
+%install
+%{__rm} -rf %{buildroot}
+%{__make} install DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
+
+%clean
+%{__rm} -rf %{buildroot}
+
+%post -p /sbin/ldconfig
+%postun -p /sbin/ldconfig
+
+%files 
+%defattr(-,root,root)
+%doc AUTHORS ChangeLog COPYING INSTALL NEWS PROTOCOL README
+%attr(0755,root,root) %{_libdir}/libburrow.so.*
+
+%files devel
+%defattr(-,root,root)
+%{_includedir}/libburrow
+%{_libdir}/libburrow.la
+%{_libdir}/pkgconfig/libburrow.pc
+%{_libdir}/libburrow.so
+
+%changelog
