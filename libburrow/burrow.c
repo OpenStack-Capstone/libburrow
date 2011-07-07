@@ -13,26 +13,11 @@
  * @brief Burrow user/frontend functions
  */
 
-
 #include "common.h"
 
 /* Functions visible to the backend: */
 
-void burrow_log_info(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_debug(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_warn(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_error(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_fatal(burrow_st *burrow, const char *msg, ...);
-
-void burrow_fatal(burrow_st *burrow, const char *msg, ...);
-
-void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...);
-
-void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent_t events)
+static void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
   uint32_t count;

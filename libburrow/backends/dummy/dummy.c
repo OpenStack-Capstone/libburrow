@@ -154,6 +154,8 @@ static void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
   dummy->body_size = 0;
   dummy->ttl = 0;
   dummy->hide = 0;
+  
+  return dummy;
 }
 
 static void burrow_backend_dummy_free(void *ptr)
@@ -307,26 +309,26 @@ static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const cha
   return BURROW_OK;
 }
 
-static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *account, const char *queues, const char *message_id, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* get_message default detail is DETAIL_ALL */
   burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
   
-  if (!search_matches(dummy, account, queues, message_id, NULL))
+  if (!search_matches(dummy, account, queue, id, NULL))
     return BURROW_OK;
     
   message_with_detail(dummy, detail);
   return BURROW_OK;
 }
 
-static burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const char *account, const char *queues, const char *id, const burrow_filters_st *filters)
+static burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_filters_st *filters)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* filters parameter unused here */
   (void) filters;
   
-  if (!search_matches(dummy, account, queues, id, NULL))
+  if (!search_matches(dummy, account, queue, id, NULL))
     return BURROW_OK;
 
   dummy_free_internals(dummy);
@@ -383,7 +385,8 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char
     dummy->burrow->free_fn(dummy->burrow, id_copy);
     dummy->burrow->free_fn(dummy->burrow, account_copy);
     dummy->burrow->free_fn(dummy->burrow, queue_copy);
-    return burrow_error(BURROW_ERROR_MEMORY, "burrow_backend_dummy_create_message", "malloc body");
+    burrow_error(dummy->burrow, BURROW_ERROR_MEMORY, "burrow_backend_dummy_create_message: malloc failed");
+    return BURROW_ERROR_MEMORY;
   }
 
   dummy_free_internals(dummy);
@@ -425,6 +428,7 @@ burrow_backend_functions_st burrow_backend_dummy_functions = {
   .size = &burrow_backend_dummy_size,
   .clone = &burrow_backend_dummy_clone,
 
+  .cancel = &burrow_backend_dummy_cancel,
   .set_option = &burrow_backend_dummy_set_option,
 
   .event_raised = &burrow_backend_dummy_event_raised,

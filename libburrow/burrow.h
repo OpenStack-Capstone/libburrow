@@ -424,6 +424,27 @@ burrow_result_t burrow_process(burrow_st *burrow);
  */
 burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
 
+
+
+
+
+
+/* TODO: Not sure where these should go yet; here for now: */
+
+void burrow_log_info(burrow_st *burrow, const char *msg, ...);
+
+void burrow_log_debug(burrow_st *burrow, const char *msg, ...);
+
+void burrow_log_warn(burrow_st *burrow, const char *msg, ...);
+
+void burrow_log_error(burrow_st *burrow, const char *msg, ...);
+
+void burrow_log_fatal(burrow_st *burrow, const char *msg, ...);
+
+void burrow_fatal(burrow_st *burrow, const char *msg, ...);
+
+void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...);
+
 #ifdef  __cplusplus
 }
 #endif

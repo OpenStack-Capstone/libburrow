@@ -4,6 +4,7 @@
 #include "config.h"
 
 #include "burrow.h"
+#include "backends.h"
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>

@@ -40,11 +40,13 @@ lib_LTLIBRARIES += libburrow.la
 libburrow_la_SOURCES = \
 	libburrow/burrow.c \
 	libburrow/backends/dummy/dummy.c \
-	libburrow/attributes.c
+	libburrow/attributes.c \
+	libburrow/backends.h
 
 nobase_include_HEADERS += \
 	libburrow/burrow.h \
-	libburrow/visibility.h
+	libburrow/visibility.h \
+	libburrow/attributes.h
 
 libburrow_la_CFLAGS = \
 	${AM_CFLAGS} \
