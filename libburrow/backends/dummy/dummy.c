@@ -262,7 +262,7 @@ static burrow_result_t burrow_backend_dummy_get_messages(void *ptr, const char *
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* get_messages default detail is DETAIL_ALL */
-  burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
+  burrow_detail_t detail = (filters && filters->detail != BURROW_DETAIL_UNSET ? filters->detail : BURROW_DETAIL_ALL);
   
   if (!search_matches(dummy, account, queues, NULL, filters))
     return BURROW_OK;
@@ -286,7 +286,7 @@ static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const cha
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* update_messages default detail is DETAIL_ATTRIBUTES */
-  burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ATTRIBUTES : BURROW_DETAIL_ATTRIBUTES);
+  burrow_detail_t detail = (filters && filters->detail != BURROW_DETAIL_UNSET ? filters->detail : BURROW_DETAIL_ATTRIBUTES);
   time_t curtime = time(NULL);
 
   if (!attributes)
@@ -313,7 +313,7 @@ static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const char *a
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* get_message default detail is DETAIL_ALL */
-  burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ALL : BURROW_DETAIL_ALL);
+  burrow_detail_t detail = (filters && filters->detail != BURROW_DETAIL_UNSET ? filters->detail : BURROW_DETAIL_ALL);
   
   if (!search_matches(dummy, account, queue, id, NULL))
     return BURROW_OK;
@@ -339,7 +339,7 @@ static burrow_result_t burrow_backend_dummy_update_message(void *ptr, const char
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* update_message default detail is DETAIL_ATTRIBUTES */
-  burrow_detail_t detail = (filters ? filters->detail || BURROW_DETAIL_ATTRIBUTES : BURROW_DETAIL_ATTRIBUTES);
+  burrow_detail_t detail = (filters && filters->detail != BURROW_DETAIL_UNSET ? filters->detail : BURROW_DETAIL_ATTRIBUTES);
   time_t curtime = time(NULL);
 
   if (!attributes)
