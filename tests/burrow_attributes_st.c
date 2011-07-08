@@ -17,6 +17,8 @@
 int main(void)
 {
   const int COUNT = 7;
+  const int TTL = 100;
+  const int HIDE = 10;
   
   burrow_st *burrow;
   burrow_attributes_st *attr, *attr2, *attr3, *attr4, *attr5;
@@ -46,15 +48,25 @@ int main(void)
   if ((v = burrow_attributes_get_hide(attr)) != -1)
     burrow_test_error("expected -1, got: %d", v);
 
-  burrow_test("burrow_attributes ttl get set")
-  burrow_attributes_set_ttl(attr, 100);
-  if ((v = burrow_attributes_get_ttl(attr)) != 100)
+  burrow_test("burrow_attributes ttl set get")
+  burrow_attributes_set_ttl(attr, TTL);
+  if ((v = burrow_attributes_get_ttl(attr)) != TTL)
     burrow_test_error("expected 100, got: %d", v);
   
-  burrow_test("burrow_attributes hide get set")
-  burrow_attributes_set_hide(attr, 10);
-  if ((v = burrow_attributes_get_hide(attr)) != 10)
+  burrow_test("burrow_attributes hide set get")
+  burrow_attributes_set_hide(attr, HIDE);
+  if ((v = burrow_attributes_get_hide(attr)) != HIDE)
     burrow_test_error("hide: expected 10, got: %d", v);
+    
+
+  burrow_test("burrow_attributes_clone")
+  if ((attr2 = burrow_attributes_clone(NULL, attr)) == NULL)
+    burrow_test_error("returned NULL");
+  if (burrow_attributes_get_ttl(attr2) != TTL)
+    burrow_test_error("ttl not copied");
+  if (burrow_attributes_get_hide(attr2) != HIDE)
+    burrow_test_error("hide not copied");
+
 
   burrow_test("burrow_attributes_free");
   burrow_attributes_free(attr);

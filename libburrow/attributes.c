@@ -57,7 +57,9 @@ size_t burrow_attributes_size(void)
 
 burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const burrow_attributes_st *src)
 {
-  burrow_attributes_create(dest, src->burrow);
+  dest = burrow_attributes_create(dest, src->burrow);
+  if (!dest)
+    return NULL;
   dest->ttl = src->ttl;
   dest->hide = src->hide;
   return dest;
