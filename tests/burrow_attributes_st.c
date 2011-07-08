@@ -1,3 +1,17 @@
+/*
+ * libburrow/tests -- Burrow Client Library Unit Tests
+ *
+ * Copyright (C) 2011 Tony Wooster (twooster@gmail.com)
+ * All rights reserved.
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in this directory for full text.
+ */
+
+/**
+ * @file
+ * @brief Burrow attributes tests
+ */
 #include "tests/common.h"
 
 int main(void)

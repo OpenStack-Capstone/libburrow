@@ -94,12 +94,12 @@ void burrow_attributes_set_hide(burrow_attributes_st *attributes, int32_t hide)
   attributes->hide = hide;
 }
 
-int32_t burrow_attributes_get_ttl(burrow_attributes_st *attributes)
+int32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes)
 {
   return attributes->ttl;
 }
 
-int32_t burrow_attributes_get_hide(burrow_attributes_st *attributes)
+int32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes)
 {
   return attributes->hide;
 }

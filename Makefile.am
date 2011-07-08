@@ -92,7 +92,9 @@ check-truss:
 	@LIBBURROW_TEST_PREFIX="truss -c" make check
 
 check_PROGRAMS = \
-	tests/burrow_attributes_st
+	tests/burrow_attributes_st \
+	tests/burrow_st \
+	tests/burrow_backend_dummy
 
 docs: all
 	@echo "/**" > docs/doxygen/mainpage.h

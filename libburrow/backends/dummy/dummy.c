@@ -81,14 +81,17 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
   switch(detail)
   {
   case BURROW_DETAIL_ID: /* only the id is filled out */
+    burrow_log_debug(dummy->burrow, "message_with_detail: detail level id selected");
     body = NULL;
     body_size = -1;
     attrptr = NULL;
     break;
   case BURROW_DETAIL_BODY: /* only the body and body size are filled out */
+    burrow_log_debug(dummy->burrow, "message_with_detail: detail level body selected");
     attrptr = NULL;
     break;
   case BURROW_DETAIL_ATTRIBUTES: /* the body isn't filled out */
+  burrow_log_debug(dummy->burrow, "message_with_detail: detail level attributes selected");
     body = NULL;
     body_size = -1;
     break;
@@ -96,6 +99,7 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
   case BURROW_DETAIL_UNSET:
   case BURROW_DETAIL_NONE: /* suppress compiler warning */
   default:
+    burrow_log_debug(dummy->burrow, "message_with_detail: detail level all selected");
     break;
   }
   dummy->burrow->message_fn(dummy->burrow, id, body, body_size, attrptr);
@@ -400,6 +404,7 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char
   dummy->queue = queue_copy;
   dummy->message_id = id_copy;
   dummy->body = body_copy;
+  dummy->body_size = body_size;
 
   if (attributes) {
     if (attributes->ttl > -1)

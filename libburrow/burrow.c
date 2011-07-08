@@ -485,17 +485,35 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func)
   burrow->free_fn = func;
 }
 
-burrow_result_t burrow_get_message(burrow_st *burrow, const char *account, const char *queue, const char *msgid)
+
+
+
+
+
+
+
+
+burrow_result_t burrow_get_message(burrow_st *burrow,
+                                   const char *account,
+                                   const char *queue,
+                                   const char *message_id,
+                                   const burrow_filters_st *filters)
 {
   if (burrow->state != BURROW_STATE_IDLE) {
     burrow_log_error(burrow, "burrow_get_message: burrow not in an idle state");
     return BURROW_ERROR_NOT_READY;
   }
+
+  if (!account || !queue || !message_id) {
+    burrow_log_error(burrow, "burrow_get_message: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
   
   burrow->cmd.command = BURROW_CMD_GET_MESSAGE;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
-  burrow->cmd.message_id = msgid;
+  burrow->cmd.message_id = message_id;
+  burrow->cmd.filters = filters;
   
   burrow->state = BURROW_STATE_START;
 
@@ -504,6 +522,299 @@ burrow_result_t burrow_get_message(burrow_st *burrow, const char *account, const
 
   return BURROW_OK;
 }
+
+burrow_result_t burrow_create_message(burrow_st *burrow,
+                                      const char *account, 
+                                      const char *queue, 
+                                      const char *message_id,
+                                      const uint8_t *body,
+                                      size_t body_size,
+                                      const burrow_attributes_st *attributes)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_create_message: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account || !queue || !message_id || !body) {
+    burrow_log_error(burrow, "burrow_create_message: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_CREATE_MESSAGE;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.message_id = message_id;
+  burrow->cmd.body = body;
+  burrow->cmd.body_size = body_size;
+  burrow->cmd.attributes = attributes;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+burrow_result_t burrow_update_message(burrow_st *burrow,
+                                      const char *account,
+                                      const char *queue,
+                                      const char *message_id,
+                                      const burrow_attributes_st *attributes,
+                                      const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_update_message: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account || !queue || !message_id || !attributes) {
+    burrow_log_error(burrow, "burrow_update_message: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGE;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.message_id = message_id;
+  burrow->cmd.attributes = attributes;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+burrow_result_t burrow_delete_message(burrow_st *burrow,
+                                      const char *account,
+                                      const char *queue,
+                                      const char *message_id,
+                                      const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_delete_message: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account || !queue || !message_id) {
+    burrow_log_error(burrow, "burrow_delete_message: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_DELETE_MESSAGE;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.message_id = message_id;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+burrow_result_t burrow_get_messages(burrow_st *burrow,
+                                    const char *account,
+                                    const char *queue,
+                                    const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_get_messages: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account || !queue) {
+    burrow_log_error(burrow, "burrow_get_messages: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_GET_MESSAGES;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+
+burrow_result_t burrow_delete_messages(burrow_st *burrow,
+                                       const char *account,
+                                       const char *queue,
+                                       const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_delete_messages: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account || !queue) {
+    burrow_log_error(burrow, "burrow_delete_messages: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_DELETE_MESSAGES;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+
+burrow_result_t burrow_update_messages(burrow_st *burrow,
+                                       const char *account,
+                                       const char *queue,
+                                       const burrow_attributes_st *attributes,
+                                       const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_update_messages: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account || !queue || !attributes) {
+    burrow_log_error(burrow, "burrow_update_messages: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGES;
+  burrow->cmd.account = account;
+  burrow->cmd.queue = queue;
+  burrow->cmd.filters = filters;
+  burrow->cmd.attributes = attributes;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+
+burrow_result_t burrow_get_queues(burrow_st *burrow,
+                                  const char *account,
+                                  const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_get_queues: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account) {
+    burrow_log_error(burrow, "burrow_get_queues: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_GET_QUEUES;
+  burrow->cmd.account = account;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+burrow_result_t burrow_delete_queues(burrow_st *burrow,
+                                     const char *account,
+                                     const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_delete_queues: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  if (!account) {
+    burrow_log_error(burrow, "burrow_delete_queues: invalid parameters");
+    return BURROW_ERROR_BAD_ARGS;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_DELETE_QUEUES;
+  burrow->cmd.account = account;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_get_accounts: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_GET_ACCOUNTS;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+
+burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters)
+{
+  if (burrow->state != BURROW_STATE_IDLE) {
+    burrow_log_error(burrow, "burrow_delete_accounts: burrow not in an idle state");
+    return BURROW_ERROR_NOT_READY;
+  }
+  
+  burrow->cmd.command = BURROW_CMD_DELETE_ACCOUNTS;
+  burrow->cmd.filters = filters;
+  
+  burrow->state = BURROW_STATE_START;
+
+  if (burrow->options & BURROW_OPT_AUTOPROCESS)
+    return burrow_process(burrow);
+
+  return BURROW_OK;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void burrow_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args);
 

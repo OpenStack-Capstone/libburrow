@@ -281,7 +281,8 @@ burrow_result_t burrow_update_message(burrow_st *burrow,
                                       const char *account,
                                       const char *queue,
                                       const char *message_id,
-                                      const burrow_attributes_st *attributes);
+                                      const burrow_attributes_st *attributes,
+                                      const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_message command.
@@ -298,7 +299,8 @@ BURROW_API
 burrow_result_t burrow_get_message(burrow_st *burrow,
                                    const char *account,
                                    const char *queue,
-                                   const char *message_id);
+                                   const char *message_id,
+                                   const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_message command.
@@ -315,7 +317,8 @@ BURROW_API
 burrow_result_t burrow_delete_message(burrow_st *burrow,
                                       const char *account,
                                       const char *queue,
-                                      const char *message_id);
+                                      const char *message_id,
+                                      const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_messages command.
