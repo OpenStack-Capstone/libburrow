@@ -20,8 +20,6 @@ case `uname -s` in
   LIBTOOL_BIN="libtool"
   ;;
 esac
-  LIBTOOL_BIN="libtool"
-
 
 name=`echo $1 | sed 's/.*\/\(libburrow\/.*[^\/]*\)$/\1/'`
 
