@@ -297,10 +297,7 @@ const char *_error_strings[] = {
 static void burrow_default_log_fn(burrow_st *burrow, burrow_verbose_t verbose, const char *msg)
 {
   (void) burrow;
-  (void) verbose;
-  (void) msg;
-  printf("log");
-//  printf("libburrow(%s): %s\n", _error_strings[verbose], msg);
+  printf("libburrow(%s): %s\n", _error_strings[verbose], msg);
 }
 
 burrow_st *burrow_create(burrow_st *burrow, const char *backend)
@@ -324,7 +321,7 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   }
   
   burrow->options = 0;
-  burrow->verbose = BURROW_VERBOSE_ERROR;
+  burrow->verbose = BURROW_VERBOSE_DEFAULT;
   burrow->state = BURROW_STATE_IDLE;
   burrow->cmd.command = BURROW_CMD_NONE;
   burrow->context = NULL;
@@ -360,7 +357,8 @@ void burrow_free(burrow_st *burrow)
     burrow->free_fn(burrow, burrow->pfds);
     burrow->pfds = NULL;
   }
-  
+ 
+  burrow_log_info(burrow, "burrow_free: attributes list %c= NULL", (burrow->attributes_list == NULL ? '=' : '!')); 
   while (burrow->attributes_list != NULL)
     burrow_attributes_free(burrow->attributes_list);
 
@@ -507,50 +505,85 @@ burrow_result_t burrow_get_message(burrow_st *burrow, const char *account, const
   return BURROW_OK;
 }
 
+void burrow_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args);
 
+void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...)
+{
+  va_list args;
+  (void) error;
+
+  if (burrow->verbose >= BURROW_VERBOSE_ERROR) {
+    va_start(args, msg);
+    burrow_log(burrow, BURROW_VERBOSE_ERROR, msg, args);
+    va_end(args);
+  }
+}
+
+void burrow_log_fatal(burrow_st *burrow, const char *msg, ...)
+{
+  va_list args;
+
+  if (burrow->verbose >= BURROW_VERBOSE_FATAL) {
+    va_start(args, msg);
+    burrow_log(burrow, BURROW_VERBOSE_FATAL, msg, args);
+    va_end(args);
+  }
+}
+
+void burrow_log_error(burrow_st *burrow, const char *msg, ...)
+{
+  va_list args;
+
+  if (burrow->verbose >= BURROW_VERBOSE_ERROR) {
+    va_start(args, msg);
+    burrow_log(burrow, BURROW_VERBOSE_ERROR, msg, args);
+    va_end(args);
+  }
+}
+
+void burrow_log_warn(burrow_st *burrow, const char *msg, ...)
+{
+  va_list args;
+
+  if (burrow->verbose >= BURROW_VERBOSE_WARN) {
+    va_start(args, msg);
+    burrow_log(burrow, BURROW_VERBOSE_WARN, msg, args);
+    va_end(args);
+  }
+}
 
 void burrow_log_info(burrow_st *burrow, const char *msg, ...)
 {
-  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_INFO) {
-    burrow->log_fn(burrow, BURROW_VERBOSE_INFO, msg);
+  va_list args;
+
+  if (burrow->verbose >= BURROW_VERBOSE_INFO) {
+    va_start(args, msg);
+    burrow_log(burrow, BURROW_VERBOSE_INFO, msg, args);
+    va_end(args);
   }
 }
 
 void burrow_log_debug(burrow_st *burrow, const char *msg, ...)
 {
-  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_DEBUG) {
-    burrow->log_fn(burrow, BURROW_VERBOSE_DEBUG, msg);
-  }  
+  va_list args;
+
+  if (burrow->verbose >= BURROW_VERBOSE_DEBUG) {
+    va_start(args, msg);
+    burrow_log(burrow, BURROW_VERBOSE_DEBUG, msg, args);
+    va_end(args);
+  }
 }
 
-void burrow_log_warn(burrow_st *burrow, const char *msg, ...)
-{
-  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_WARN) {
-    burrow->log_fn(burrow, BURROW_VERBOSE_WARN, msg);
-  }  
-}
+void burrow_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args)
+{ 
+  char buffer[BURROW_MAX_ERROR_SIZE];
 
-void burrow_log_error(burrow_st *burrow, const char *msg, ...)
-{
-  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_ERROR) {
-    burrow->log_fn(burrow, BURROW_VERBOSE_ERROR, msg);
-  }  
-}
-
-void burrow_log_fatal(burrow_st *burrow, const char *msg, ...)
-{
-  if (burrow->log_fn && burrow->verbose >= BURROW_VERBOSE_FATAL) {
-    burrow->log_fn(burrow, BURROW_VERBOSE_FATAL, msg);
-  }  
-}
-
-void burrow_fatal(burrow_st *burrow, const char *msg, ...)
-{
-  burrow_log_fatal(burrow, msg);
-}
-
-void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...)
-{
-  (void) error;
-  burrow_log_error(burrow, msg);
+  if (burrow->log_fn == NULL) {
+    printf("%5s: ", _error_strings[verbose]);
+    vprintf(msg, args);
+    printf("\n");
+  } else {
+    vsnprintf(buffer, BURROW_MAX_ERROR_SIZE, msg, args);
+    burrow->log_fn(burrow, verbose, buffer);
+  }
 }

@@ -40,6 +40,8 @@ burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burro
       dest->next = burrow->attributes_list;
     } else
       dest->next = NULL;
+
+    burrow->attributes_list = dest;
   }
   
   dest->ttl = -1;
@@ -73,6 +75,8 @@ void burrow_attributes_free(burrow_attributes_st *attributes)
       if (attributes->next == NULL &&
           attributes->prev == NULL)
         attributes->burrow->attributes_list = NULL;
+      else
+        attributes->burrow->attributes_list = attributes->next;
     }
     attributes->burrow->free_fn(attributes->burrow, attributes);
   } else {

@@ -53,6 +53,8 @@ PANDORA_PLUGINS
 AC_DEFINE_UNQUOTED([BURROW_MODULE_EXT], ["$acl_cv_shlibext"],
                    [Extension to use for modules.])
 
+AC_CHECK_HEADERS([stdarg.h stdio.h stdlib.h string.h])
+
 AC_CONFIG_FILES(Makefile docs/doxygen/header.html)
 AC_CONFIG_FILES(support/libburrow.pc support/libburrow.spec)
 

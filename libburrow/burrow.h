@@ -475,8 +475,6 @@ void burrow_log_error(burrow_st *burrow, const char *msg, ...);
 
 void burrow_log_fatal(burrow_st *burrow, const char *msg, ...);
 
-void burrow_fatal(burrow_st *burrow, const char *msg, ...);
-
 void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...);
 
 #ifdef  __cplusplus

@@ -3,7 +3,7 @@
 int main(void)
 {
   burrow_st *burrow;
-  burrow_attributes_st *attr;
+  burrow_attributes_st *attr, *attr2, *attr3;
   int32_t v;
   
   burrow_test("burrow_create");
@@ -33,6 +33,31 @@ int main(void)
   burrow_attributes_set_hide(attr, 10);
   if ((v = burrow_attributes_get_hide(attr)) != 10)
     burrow_test_error("hide: expected 10, got: %d", v);
-    
+
+  burrow_test("burrow_attributes_free");
+  burrow_attributes_free(attr);
   
+  burrow_test("burrow_free");
+  burrow_free(burrow);
+ 
+  /* Test multiple managed attributes at once */
+  
+  burrow_test("burrow_create");
+  if ((burrow = burrow_create(NULL, "dummy")) == NULL)
+    burrow_test_error("returned NULL")
+  
+  burrow_test("burrow_attributes_create managed 1");
+  if ((attr = burrow_attributes_create(NULL, burrow)) == NULL)
+    burrow_test_error("returned NULL");
+
+  burrow_test("burrow_attributes_create managed 2");
+  if ((attr2 = burrow_attributes_create(NULL, burrow)) == NULL)
+    burrow_test_error("returned NULL");
+
+  burrow_test("burrow_attributes_create managed 3");
+  if ((attr3 = burrow_attributes_create(NULL, burrow)) == NULL)
+    burrow_test_error("returned NULL");
+
+  burrow_test("burrow_free");
+  burrow_free(burrow);
 }
