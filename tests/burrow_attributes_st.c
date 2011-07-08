@@ -3,7 +3,7 @@
 int main(void)
 {
   burrow_st *burrow;
-  burrow_attributes_st *attr, *attr2, *attr3;
+  burrow_attributes_st *attr, *attr2, *attr3, *attr4, *attr5;
   int32_t v;
   
   burrow_test("burrow_create");
@@ -46,18 +46,19 @@ int main(void)
   if ((burrow = burrow_create(NULL, "dummy")) == NULL)
     burrow_test_error("returned NULL")
   
-  burrow_test("burrow_attributes_create managed 1");
-  if ((attr = burrow_attributes_create(NULL, burrow)) == NULL)
+  burrow_test("burrow_attributes_create managed 5");
+  attr = burrow_attributes_create(NULL, burrow);
+  attr2 = burrow_attributes_create(NULL, burrow);
+  attr3 = burrow_attributes_create(NULL, burrow);
+  attr4 = burrow_attributes_create(NULL, burrow);
+  attr5 = burrow_attributes_create(NULL, burrow);
+  if (!attr || !attr2 || !attr3 || !attr4 || !attr5)
     burrow_test_error("returned NULL");
-
-  burrow_test("burrow_attributes_create managed 2");
-  if ((attr2 = burrow_attributes_create(NULL, burrow)) == NULL)
-    burrow_test_error("returned NULL");
-
-  burrow_test("burrow_attributes_create managed 3");
-  if ((attr3 = burrow_attributes_create(NULL, burrow)) == NULL)
-    burrow_test_error("returned NULL");
-
-  burrow_test("burrow_free");
+  
+  burrow_attr_free(attr); /* head */
+  burrow_attr_free(attr3); /* middle */
+  burrow_attr_free(attr5); /* end */
+  
+  burrow_test("burrow_free managed");
   burrow_free(burrow);
 }
