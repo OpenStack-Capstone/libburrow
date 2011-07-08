@@ -2,13 +2,21 @@
 
 int main(void)
 {
+  const int COUNT = 7;
+  
   burrow_st *burrow;
   burrow_attributes_st *attr, *attr2, *attr3, *attr4, *attr5;
   int32_t v;
+  size_t size;
+  int i;
+  
+  burrow_test("burrow_attributes_size");
+  if ((size = burrow_attributes_size()) == 0)
+    burrow_test_error("returned 0 size");
   
   burrow_test("burrow_create");
   if ((burrow = burrow_create(NULL, "dummy")) == NULL)
-    burrow_test_error("returned NULL")
+    burrow_test_error("returned NULL");
 
   burrow_test("burrow_attributes_create managed");
   // Test managed structures
@@ -61,4 +69,21 @@ int main(void)
   
   burrow_test("burrow_free managed");
   burrow_free(burrow);
+  
+  /* Test non-managed attributes */
+  
+  burrow_test("burrow_create");
+  if ((burrow = burrow_create(NULL, "dummy")) == NULL)
+    burrow_test_error("returned NULL")
+  
+  burrow_test("burrow_attributes_create multiple unmanaged");
+  attr = malloc(size * COUNT);
+  for (i = 0; i < COUNT; i++) {
+    if (burrow_attributes_create( (burrow_attributes_st *)((uint8_t*)attr + size * i), burrow ) == NULL)
+      burrow_test_error("returned NULL")
+  }
+  
+  burrow_free(burrow);
+  
+  free(attr);
 }
