@@ -10,6 +10,19 @@
 #
 
 # Get filename we want to run without path
+
+# On MAC OS X, GNU libtool is named 'glibtool':
+case `uname -s` in 
+'Darwin')
+  LIBTOOL_BIN="glibtool"
+  ;;
+*)
+  LIBTOOL_BIN="libtool"
+  ;;
+esac
+  LIBTOOL_BIN="libtool"
+
+
 name=`echo $1 | sed 's/.*\/\(libburrow\/.*[^\/]*\)$/\1/'`
 
 ext=`echo $name | sed 's/.*\.\([^.]*$\)/\1/'`
@@ -20,7 +33,7 @@ fi
 
 if [ ! "x$ext" = "xsh" ]
 then
-  libtool_prefix="libtool --mode=execute"
+  libtool_prefix="$LIBTOOL_BIN --mode=execute"
 fi
 
 # Set prefix if it was given through environment

@@ -55,9 +55,9 @@ int main(void)
   if (!attr || !attr2 || !attr3 || !attr4 || !attr5)
     burrow_test_error("returned NULL");
   
-  burrow_attr_free(attr); /* head */
-  burrow_attr_free(attr3); /* middle */
-  burrow_attr_free(attr5); /* end */
+  burrow_attributes_free(attr); /* head */
+  burrow_attributes_free(attr3); /* middle */
+  burrow_attributes_free(attr5); /* end */
   
   burrow_test("burrow_free managed");
   burrow_free(burrow);
