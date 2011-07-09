@@ -103,9 +103,9 @@ int main(void)
     burrow_test_error("returned NULL")
   
   burrow_test("burrow_attributes_create multiple unmanaged");
-  attr = malloc(size * COUNT);
+  attr = malloc(size * (size_t)COUNT);
   for (i = 0; i < COUNT; i++) {
-    if (burrow_attributes_create( (burrow_attributes_st *)((uint8_t*)attr + size * i), burrow ) == NULL)
+    if (burrow_attributes_create( (burrow_attributes_st *)((uint8_t*)attr + (int)size * i), burrow ) == NULL)
       burrow_test_error("returned NULL")
   }
   

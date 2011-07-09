@@ -92,7 +92,7 @@ static void message_callback(burrow_st *burrow, const char *message_id, const ui
     client->result |= CALL_MSG;
   
   if (!strcmp(message_id, client->msgid) &&
-      (!body || (body_size == (ssize_t)client->body_size && !memcmp(body, client->body, body_size) )) )
+      (!body || (body_size == (ssize_t)client->body_size && !memcmp(body, client->body, (size_t)body_size) )) )
     client->result |= MATCH_MSG_ONLY;
 }
 
@@ -103,7 +103,7 @@ static void queues_callback(burrow_st *burrow, char **queues, size_t size)
 
   client->queues_callback_called++;
 
-  i = size;
+  i = (int)size;
   printf("queues callback called(%d): size %d, queues: ", client->queues_callback_called, size);
   while (i--)
     printf(" %s", queues[i]);
