@@ -1,0 +1,111 @@
+/* Blocking case -- pseudocode provided by Eric Day */
+#include <libburrow/burrow.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+typedef struct msg_st {
+  char *msg_id;
+  const uint8_t *body;
+  int body_size;
+  
+  struct msg_st *next;
+} msg_st;
+
+typedef struct client_st
+{
+  int return_code;
+  int message_count;
+
+  char *account;
+  char *queue;
+  
+  msg_st *messages;
+  msg_st *current_message;
+} client_st;
+
+static void _complete(burrow_st *burrow)
+{
+  client_st *client = burrow_get_context(burrow);
+
+  printf("done: %s/%s/%s: %s\n", client->account, client->queue, client->current_message->msg_id, client->current_message->body);
+
+  client->current_message = client->current_message->next;
+  if (client->current_message == NULL)
+    return;
+
+  /* Since this only sets next start state, we don't have to worry about recursion. When
+     this callback returns the loop continues with this next message. */
+  burrow_create_message(burrow, client->account, client->queue,
+    client->current_message->msg_id, client->current_message->body, client->current_message->body_size, NULL);
+}
+
+static void _log(burrow_st *burrow, burrow_verbose_t verbose, const char *message)
+{
+  client_st *client = burrow_get_context(burrow);
+  if (verbose >= BURROW_VERBOSE_ERROR)
+  {
+    printf("Error: %s", message);
+    client->return_code = 1;
+  }
+}
+
+int main(int argc, char **argv)
+{
+  burrow_st *burrow;
+  client_st client;
+  msg_st *msg;
+
+  argc--;
+  argv++;
+
+  if (argc < 4 || argc % 2 != 0)
+    return -1;
+
+  client.account = argv[0];
+  client.queue = argv[1];
+  argc -= 2;
+  argv += 2;
+
+  client.messages = NULL;
+  client.message_count = 0;
+
+  while (argc) {
+    msg = malloc(sizeof(msg_st));
+    if (!msg)
+      return -2;
+
+    msg->msg_id = argv[0];
+    msg->body = (uint8_t *)argv[1];
+    msg->body_size = strlen(argv[1]);
+    msg->next = client.messages;
+    client.messages = msg;
+    client.message_count++;
+
+    argc -= 2;
+    argv += 2;
+  }
+
+  client.return_code = 0;
+  client.current_message = client.messages;
+
+  burrow = burrow_create(NULL, "dummy");
+/*  burrow_set_backend_option("server", "burrow.example.com");
+  burrow_set_backend_option("port", "1234");*/
+
+  burrow_set_context(burrow, &client);
+  burrow_set_complete_fn(burrow, &_complete);
+  burrow_set_log_fn(burrow, &_log);
+
+  /* Insert the first one here to kick the loop off. This only sets start state,
+     it doesn't run the loop. */
+  msg = client.current_message;
+  burrow_create_message(burrow, client.account, client.queue,
+    msg->msg_id, msg->body, msg->body_size, NULL);
+
+  /* This runs until there are no more tasks. */
+  burrow_process(burrow);
+  burrow_free(burrow);
+
+  return client.return_code;
+}

@@ -12,12 +12,16 @@ ACLOCAL_AMFLAGS = -I m4
 LDADD = libburrow.la
 
 #bin_PROGRAMS =
-#noinst_PROGRAMS =
 lib_LTLIBRARIES =
 #noinst_LTLIBRARIES =
 nobase_include_HEADERS =
 #pkgplugin_LTLIBRARIES =
 CLEANFILES =
+
+
+noinst_PROGRAMS = \
+  examples/complete_loop
+
 EXTRA_DIST = \
   docs/doxygen/Doxyfile \
   docs/doxygen/header.html.in \
