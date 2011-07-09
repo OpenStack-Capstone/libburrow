@@ -234,7 +234,7 @@ static void client_check(client_st *client)
       print_expectation(client->must_not & client->result);
     }
     printf("\n");
-    burrow_test_error("failed, must: 0x%03x, must_not: 0x%03x, did: 0x%03x", client->must, client->must_not, client->result);
+    burrow_test_error("failed");
   }
 }
 
