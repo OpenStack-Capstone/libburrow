@@ -7,7 +7,7 @@
 typedef struct msg_st {
   char *msg_id;
   const uint8_t *body;
-  int body_size;
+  size_t body_size;
   
   struct msg_st *next;
 } msg_st;

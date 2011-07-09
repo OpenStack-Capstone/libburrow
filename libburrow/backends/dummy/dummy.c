@@ -410,7 +410,7 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const char
   dummy->queue = queue_copy;
   dummy->message_id = id_copy;
   dummy->body = body_copy;
-  dummy->body_size = body_size;
+  dummy->body_size = (ssize_t)body_size;
 
   if (attributes) {
     if (attributes->ttl > -1)
