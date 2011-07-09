@@ -485,14 +485,6 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func)
   burrow->free_fn = func;
 }
 
-
-
-
-
-
-
-
-
 burrow_result_t burrow_get_message(burrow_st *burrow,
                                    const char *account,
                                    const char *queue,
