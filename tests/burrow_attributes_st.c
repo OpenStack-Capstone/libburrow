@@ -110,6 +110,5 @@ int main(void)
   }
   
   burrow_free(burrow);
-  
   free(attr);
 }

@@ -35,13 +35,11 @@ burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burro
 
     dest->burrow = burrow;
     dest->prev = NULL;
-    if (burrow->attributes_list != NULL) {
-      burrow->attributes_list->prev = dest;
-      dest->next = burrow->attributes_list;
-    } else
-      dest->next = NULL;
-
+    dest->next = burrow->attributes_list;
     burrow->attributes_list = dest;
+
+    if (dest->next != NULL)
+      dest->next->prev = dest;
   }
   
   dest->ttl = -1;
@@ -69,16 +67,14 @@ void burrow_attributes_free(burrow_attributes_st *attributes)
 {
   if (attributes->burrow != NULL) { 
     if (attributes->next != attributes) { /* a managed attribute object */
-      if (attributes->prev != NULL) /* not at front */
-        attributes->prev->next = attributes->next;
+
       if (attributes->next != NULL) /* not at end */
         attributes->next->prev = attributes->prev;
-
-      if (attributes->next == NULL &&
-          attributes->prev == NULL)
-        attributes->burrow->attributes_list = NULL;
-      else
+      if (attributes->prev != NULL) /* not at front */
+        attributes->prev->next = attributes->next;
+      else /* at front -- update burrow */
         attributes->burrow->attributes_list = attributes->next;
+
     }
     attributes->burrow->free_fn(attributes->burrow, attributes);
   } else {
