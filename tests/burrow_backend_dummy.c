@@ -419,8 +419,141 @@ int main(void)
 
   burrow_test("burrow_get_message");
 
-    client_may(client, CALL_MSG);
+    client_only(client, EXPECT_NONE);
     burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  /* create, verify, delete messages*, verify no messages, verify no exact message */
+
+  burrow_test("burrow_create_message");
+
+    client_may(client, MATCH_MSG);
+    burrow_create_message(burrow, client->acct, client->queue, client->msgid, client->body, client->body_size, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_message");
+
+    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  burrow_test("burrow_delete_messages");
+
+    client_may(client, MATCH_MSG | MULT_MSG);
+    burrow_delete_messages(burrow, client->acct, client->queue, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_messages");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_messages(burrow, client->acct, client->queue, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_message");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_queues");
+
+    client_may(client, CALL_QUEUES);
+    burrow_get_queues(burrow, client->acct, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_accounts");
+
+    client_may(client, CALL_ACCTS);
+    burrow_get_accounts(burrow, NULL);
+    client_check(client);
+
+
+  /* create, verify, delete queues, verify no messages, verify no exact message, verify no queues */
+
+  burrow_test("burrow_create_message");
+
+    client_may(client, MATCH_MSG);
+    burrow_create_message(burrow, client->acct, client->queue, client->msgid, client->body, client->body_size, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_message");
+
+    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  burrow_test("burrow_delete_queues");
+
+    client_only(client, EXPECT_NONE);
+    burrow_delete_queues(burrow, client->acct, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_messages");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_messages(burrow, client->acct, client->queue, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_message");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_queues");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_queues(burrow, client->acct, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_accounts");
+
+    client_may(client, CALL_ACCTS);
+    burrow_get_accounts(burrow, NULL);
+    client_check(client);
+
+  /* create, verify, delete queues, verify no messages, verify no exact message, verify no queues */
+
+  burrow_test("burrow_create_message");
+
+    client_may(client, MATCH_MSG);
+    burrow_create_message(burrow, client->acct, client->queue, client->msgid, client->body, client->body_size, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_message");
+
+    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  burrow_test("burrow_delete_accounts");
+
+    client_only(client, EXPECT_NONE);
+    burrow_delete_accounts(burrow, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_messages");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_messages(burrow, client->acct, client->queue, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_message");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_queues");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_queues(burrow, client->acct, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_accounts");
+
+    client_only(client, EXPECT_NONE);
+    burrow_get_accounts(burrow, NULL);
     client_check(client);
 
   burrow_remove_options(burrow, BURROW_OPT_AUTOPROCESS);
