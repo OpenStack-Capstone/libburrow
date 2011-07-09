@@ -57,8 +57,6 @@ struct client_st {
   int custom_malloc_called;
   int custom_free_called;
   
-  int state;
-
   expectation_t must, must_not;
   expectation_t result;
   
@@ -67,7 +65,6 @@ struct client_st {
   const char *msgid;
   size_t body_size;
   const uint8_t *body;
-  
 };
  
 typedef struct client_st client_st;
@@ -150,31 +147,6 @@ static void complete_feedback(burrow_st *burrow)
   client_st *client = burrow_get_context(burrow);
   client->complete_callback_called++;
   printf("complete callback called(%d)\n", client->complete_callback_called);
-  
-/*  switch(++(client->state)) {
-  case 1:
-    burrow_get_accounts(burrow, NULL);
-    break;
-
-  case 2:
-    burrow_get_queues(burrow, ACCT, NULL);
-    break;
-  
-  case 3:
-    burrow_get_messages(burrow, ACCT, QUEUE, NULL);
-    break;
-  
-  case 4:
-    sleep(2);
-    burrow_get_message(burrow, ACCT, QUEUE, MSGID, NULL);
-
-  case 5:
-    printf("feedback complete\n");
-    break;
-
-  default:
-    break;
-  }*/
 }
 
 static void *custom_malloc(burrow_st *burrow, size_t size)
@@ -561,49 +533,5 @@ int main(void)
   burrow_test("burrow_free dummy");
   burrow_free(burrow);
 
-  /* Feedback tests */
-
-
-#if 0
-  burrow_test("burrow_create dummy");
-  if ((burrow = burrow_create(NULL, "dummy")) == NULL)
-    burrow_test_error("returned NULL");
-
-  burrow_set_context(burrow, &client);
-
-  burrow_set_malloc_fn(burrow, &custom_malloc);
-  burrow_set_free_fn(burrow, &custom_free);
-
-  burrow_test("burrow set message, queues, accounts, complete");
-  burrow_set_message_fn(burrow, &message_callback);
-  burrow_set_queues_fn(burrow, &queues_callback);
-  burrow_set_accounts_fn(burrow, &accounts_callback);
-  burrow_set_complete_fn(burrow, &complete_feedback);
-
-  burrow_test("burrow_create_message manual feedback");
-  if (burrow_create_message(burrow, ACCT, QUEUE, MSGID, BODY, BODY_SIZE, NULL) != BURROW_OK)
-    burrow_test_error("failed");
-
-  burrow_test("burrow_process");
-  if (burrow_process(burrow) != BURROW_OK)
-    burrow_test_error("returned not BURROW_OK");
-    
-  client->state = 0;
-  
-  burrow_add_options(burrow, BURROW_OPT_AUTOPROCESS);
-  burrow_test("burrow_create_message manual feedback autoprocess");
-  
-  attr = burrow_attributes_create(NULL, burrow);
-  burrow_attributes_set_ttl(attr, 1);
-  
-  burrow_create_message(burrow, ACCT, QUEUE, MSGID, BODY, BODY_SIZE, attr);
-  /*if (burrow_create_message(burrow, ACCT, QUEUE, MSGID, BODY, BODY_SIZE, NULL) != BURROW_OK)
-    burrow_test_error("failed");*/
-  
-  burrow_remove_options(burrow, BURROW_OPT_AUTOPROCESS);
-  
-  burrow_test("burrow_free dummy");
-  burrow_free(burrow);
-#endif
   free(client);
 }
