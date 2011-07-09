@@ -47,7 +47,7 @@ struct client_st {
   
   int state;
 
-  expectation_t expect;
+  expectation_t must, must_not;
   expectation_t result;
   
   const char *acct;
@@ -170,10 +170,26 @@ static void custom_free(burrow_st *burrow, void *ptr)
   free(ptr);
 }
 
-static void client_expect(client_st *client, expectation_t expect)
+static void client_expect(client_st *client, expectation_t must, expectation_t must_not)
 {
-  client->expect = expect;
+  client->must = must;
+  client->must_not = must_not;
   client->result = EXPECT_NONE;
+}
+
+static void client_only(client_st *client, expectation_t only)
+{
+  client_expect(client, only, ~only);
+}
+
+/*static void client_may(client_st *client, expectation_t may)
+{
+  client_expect(client, may, 0);
+}*/
+
+static bool client_passed(client_st *client)
+{
+  return ((client->result & client->must) == client->must) && ((client->result & client->must_not) == 0);
 }
 
 int main(void)
@@ -222,36 +238,35 @@ int main(void)
     burrow_test_error("failed");
 
   burrow_test("burrow_create_message autoprocess");
-  client_expect(client, EXPECT_NONE);
+  client_only(client, EXPECT_NONE);
   burrow_create_message(burrow, client->acct, client->queue, client->msgid, client->body, client->body_size, NULL);
-  if (client->result != client->expect)
+  if (!client_passed(client))
     burrow_test_error("failed");
 
   burrow_test("burrow_get_accounts");
-  client_expect(client, EXPECT_ACCTS_MATCH);
+  client_only(client, EXPECT_ACCTS_MATCH);
   burrow_get_accounts(burrow, NULL);
-  if (client->result != client->expect)
-    burrow_test_error("failed, %d != %d", client->result, client->expect);
+  if (!client_passed(client))
+    burrow_test_error("failed");
 
   burrow_test("burrow_get_queues");
-  client_expect(client, EXPECT_QUEUES_MATCH);
+  client_only(client, EXPECT_QUEUES_MATCH);
   burrow_get_queues(burrow, client->acct, NULL);
-  if (client->result != client->expect)
+  if (!client_passed(client))
     burrow_test_error("failed");
 
   burrow_test("burrow_get_messages");
-  client_expect(client, EXPECT_MSG_MATCH);
+  client_only(client, EXPECT_MSG_MATCH);
   burrow_get_messages(burrow, client->acct, client->queue, NULL);
-  if (client->result != client->expect)
+  if (!client_passed(client))
     burrow_test_error("failed");
 
   burrow_test("burrow_get_message");
-  client_expect(client, EXPECT_MSG_MATCH);
-  burrow_get_messages(burrow, client->acct, client->queue, NULL);
-  if (client->result != client->expect)
+  client_only(client, EXPECT_MSG_MATCH);
+  burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
+  if (!client_passed(client))
     burrow_test_error("failed");
 
-  
 
   burrow_remove_options(burrow, BURROW_OPT_AUTOPROCESS);
 
