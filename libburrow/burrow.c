@@ -815,7 +815,7 @@ void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...
   va_list args;
   (void) error;
 
-  if (burrow->verbose >= BURROW_VERBOSE_ERROR) {
+  if (burrow->verbose <= BURROW_VERBOSE_ERROR) {
     va_start(args, msg);
     burrow_log(burrow, BURROW_VERBOSE_ERROR, msg, args);
     va_end(args);
@@ -826,7 +826,7 @@ void burrow_log_fatal(burrow_st *burrow, const char *msg, ...)
 {
   va_list args;
 
-  if (burrow->verbose >= BURROW_VERBOSE_FATAL) {
+  if (burrow->verbose <= BURROW_VERBOSE_FATAL) {
     va_start(args, msg);
     burrow_log(burrow, BURROW_VERBOSE_FATAL, msg, args);
     va_end(args);
@@ -837,7 +837,7 @@ void burrow_log_error(burrow_st *burrow, const char *msg, ...)
 {
   va_list args;
 
-  if (burrow->verbose >= BURROW_VERBOSE_ERROR) {
+  if (burrow->verbose <= BURROW_VERBOSE_ERROR) {
     va_start(args, msg);
     burrow_log(burrow, BURROW_VERBOSE_ERROR, msg, args);
     va_end(args);
@@ -848,7 +848,7 @@ void burrow_log_warn(burrow_st *burrow, const char *msg, ...)
 {
   va_list args;
 
-  if (burrow->verbose >= BURROW_VERBOSE_WARN) {
+  if (burrow->verbose <= BURROW_VERBOSE_WARN) {
     va_start(args, msg);
     burrow_log(burrow, BURROW_VERBOSE_WARN, msg, args);
     va_end(args);
@@ -859,7 +859,7 @@ void burrow_log_info(burrow_st *burrow, const char *msg, ...)
 {
   va_list args;
 
-  if (burrow->verbose >= BURROW_VERBOSE_INFO) {
+  if (burrow->verbose <= BURROW_VERBOSE_INFO) {
     va_start(args, msg);
     burrow_log(burrow, BURROW_VERBOSE_INFO, msg, args);
     va_end(args);
@@ -870,7 +870,7 @@ void burrow_log_debug(burrow_st *burrow, const char *msg, ...)
 {
   va_list args;
 
-  if (burrow->verbose >= BURROW_VERBOSE_DEBUG) {
+  if (burrow->verbose <= BURROW_VERBOSE_DEBUG) {
     va_start(args, msg);
     burrow_log(burrow, BURROW_VERBOSE_DEBUG, msg, args);
     va_end(args);

@@ -44,6 +44,11 @@ static void dummy_free_internals(burrow_backend_dummy_st *dummy)
   dummy->burrow->free_fn(dummy->burrow, dummy->queue);
   dummy->burrow->free_fn(dummy->burrow, dummy->message_id);
   dummy->burrow->free_fn(dummy->burrow, dummy->body);
+  dummy->account = NULL;
+  dummy->queue = NULL;
+  dummy->message_id = NULL;
+  dummy->body = NULL;
+  dummy->body_size = -1;
 }
 
 /* Calls the user's message callback with the specified detail level;
@@ -73,10 +78,11 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
 
   /* The differences should be within 32 bits, but time_t may not be signed, so we do this: */
   attr.ttl = (int32_t)((int64_t)dummy->ttl - (int64_t)curtime);
-  if (dummy->hide != 0 && dummy->hide < curtime) {
+  if (dummy->hide > 0 && dummy->hide > curtime) {
     attr.hide = (int32_t)((int64_t)dummy->hide - (int64_t)curtime);
-  } else
+  } else {
     attr.hide = 0;
+  }
   
   switch(detail)
   {
@@ -122,7 +128,7 @@ static int search_matches(burrow_backend_dummy_st *dummy, const char *account, c
   
   if (dummy->ttl < curtime)
     return 0;
-  if (dummy->hide != 0 && dummy->hide < curtime && (!filters || filters->match_hidden != BURROW_TRUE))
+  if (!message && dummy->hide > 0 && dummy->hide > curtime && (!filters || filters->match_hidden != BURROW_TRUE))
     return 0;
   
   if (!account || !queue || !message
