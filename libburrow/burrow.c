@@ -362,8 +362,8 @@ void burrow_free(burrow_st *burrow)
   while (burrow->attributes_list != NULL)
     burrow_attributes_free(burrow->attributes_list);
 
-/*  while (burrow->filters_list != NULL)
-    burrow_attributes_free(burrow->filters_list); */
+  while (burrow->filters_list != NULL)
+    burrow_filters_free(burrow->filters_list);
 
   if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
     free(burrow);

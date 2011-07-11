@@ -39,15 +39,15 @@ struct burrow_filters_st
 {
   burrow_tribool_t match_hidden; /* MAYBE -- not set */
   int32_t limit; /* -1, not set */
-  char *marker;  /* NULL, not set */
+  const char *marker;  /* NULL, not set */
   burrow_detail_t detail; /* BURROW_DETAIL_UNSET -- not set */
   int32_t wait; /* -1, not set */
 
   /* These may or may not be required for memory management, and
      are only a front-end concern. */
   burrow_st *burrow;
-  burrow_attributes_st *next;
-  burrow_attributes_st *prev;
+  burrow_filters_st *next;
+  burrow_filters_st *prev;
 };
 
 /* Private */

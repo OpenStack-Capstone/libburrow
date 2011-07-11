@@ -28,6 +28,7 @@
 #include <libburrow/constants.h>
 #include <libburrow/structs.h>
 #include <libburrow/attributes.h>
+#include <libburrow/filters.h>
 
 #ifdef  __cplusplus
 extern "C" {

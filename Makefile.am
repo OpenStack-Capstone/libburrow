@@ -43,6 +43,7 @@ libburrow_la_SOURCES = \
 	libburrow/burrow.c \
 	libburrow/backends/dummy/dummy.c \
 	libburrow/attributes.c \
+	libburrow/filters.c \
 	libburrow/backends.c
 
 nobase_include_HEADERS += \
@@ -97,6 +98,7 @@ check-truss:
 
 check_PROGRAMS = \
 	tests/burrow_attributes_st \
+	tests/burrow_filters_st \
 	tests/burrow_st \
 	tests/burrow_backend_dummy
 
