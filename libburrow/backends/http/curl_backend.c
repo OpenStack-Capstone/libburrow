@@ -197,7 +197,7 @@ burrow_backend_http_set_option(void *ptr,
 
       backend->baseurl = malloc(strlen(backend->proto) + strlen(backend->server) +
 				       strlen(backend->port) + 20);
-      sprintf(backend->baseurl, "%s://%s:%s/",
+      sprintf(backend->baseurl, "%s://%s:%s",
 	      backend->proto,
 	      backend->server,
 	      backend->port
@@ -478,6 +478,7 @@ burrow_backend_http_create_message(void *ptr,
     sprintf(url + strlen(url), "?%s", attr_string);
     free(attr_string);
   }
+printf("create_message url = \"%s\"\n", url);
   curl_easy_setopt(chandle, CURLOPT_URL, url);
 
   user_buffer *buffer = create_user_buffer(0, body);
