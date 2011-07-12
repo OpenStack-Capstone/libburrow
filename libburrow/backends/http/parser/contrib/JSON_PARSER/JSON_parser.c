@@ -374,8 +374,8 @@ push(JSON_parser jc, int mode)
     
     if (jc->depth < 0) {
         if (jc->top == jc->stack_capacity) {
-            const size_t bytes_to_copy = jc->stack_capacity * sizeof(jc->stack[0]);
-            const size_t new_capacity = jc->stack_capacity * 2;
+	  const size_t bytes_to_copy = (size_t)jc->stack_capacity * sizeof(jc->stack[0]);
+	  const size_t new_capacity = (size_t)jc->stack_capacity * 2;
             const size_t bytes_to_allocate = new_capacity * sizeof(jc->stack[0]);
             void* mem = JSON_parser_malloc(jc->malloc, bytes_to_allocate, "stack");
             if (!mem) {
@@ -461,7 +461,7 @@ int JSON_parser_reset(JSON_parser jc)
             if (jc->depth <= (int)COUNTOF(jc->static_stack)) {
                 jc->stack = &jc->static_stack[0];
             } else {
-                const size_t bytes_to_alloc = jc->stack_capacity * sizeof(jc->stack[0]);
+	      const size_t bytes_to_alloc = (size_t)jc->stack_capacity * sizeof(jc->stack[0]);
                 jc->stack = (signed char*)JSON_parser_malloc(jc->malloc, bytes_to_alloc, "stack");
                 if (jc->stack == NULL) {
                     return false;
@@ -627,6 +627,9 @@ static int parse_parse_buffer(JSON_parser jc)
                     value.vu.str.value = jc->parse_buffer;
                     value.vu.str.length = jc->parse_buffer_count;
                     break;
+	        default:
+		    assert(0==1);
+		    break;
             }
             
             if (!(*jc->callback)(jc->ctx, jc->type, arg)) {
@@ -657,7 +660,7 @@ static int decode_unicode_char(JSON_parser jc)
     p = &jc->parse_buffer[jc->parse_buffer_count - 4];
     
     for (i = 12; i >= 0; i -= 4, ++p) {
-        unsigned x = *p;
+        unsigned x = (unsigned)*p;
         
         if (x >= 'a') {
             x -= ('a' - 10);
@@ -679,7 +682,7 @@ static int decode_unicode_char(JSON_parser jc)
     /* attempt decoding ... */
     if (jc->utf16_high_surrogate) {
         if (IS_LOW_SURROGATE(uc)) {
-            uc = DECODE_SURROGATE_PAIR(jc->utf16_high_surrogate, uc);
+	    uc = (unsigned int)DECODE_SURROGATE_PAIR((unsigned int)jc->utf16_high_surrogate, uc);
             trail_bytes = 3;
             jc->utf16_high_surrogate = 0;
         } else {

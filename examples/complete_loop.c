@@ -55,9 +55,16 @@ int main(int argc, char **argv)
   burrow_st *burrow;
   client_st client;
   msg_st *msg;
+  int use_http = 0;
 
   argc--;
   argv++;
+
+  if (strcmp(argv[0], "http") == 0) {
+    use_http = 1;
+    argc--;
+    argv++;
+  }
 
   if (argc < 4 || argc % 2 != 0)
     return -1;
@@ -89,9 +96,15 @@ int main(int argc, char **argv)
   client.return_code = 0;
   client.current_message = client.messages;
 
-  burrow = burrow_create(NULL, "dummy");
-/*  burrow_set_backend_option("server", "burrow.example.com");
-  burrow_set_backend_option("port", "1234");*/
+  if (use_http == 0) {
+    burrow = burrow_create(NULL, "dummy");
+    printf("burrow = %p\n", burrow);
+  } else {
+    burrow = burrow_create(NULL, "http");
+    printf("burrow = %p\n", burrow);
+    burrow_backend_set_option(burrow, "server", "localhost");
+    burrow_backend_set_option(burrow, "port", "8080");
+  }
 
   burrow_set_context(burrow, &client);
   burrow_set_complete_fn(burrow, &_complete);

@@ -433,7 +433,7 @@ burrow_options_t burrow_get_options(burrow_st *burrow)
 
 burrow_result_t burrow_backend_set_option(burrow_st *burrow, const char *option, const char *value)
 {
-  return burrow->backend->set_option(burrow->backend, option, value);
+  return burrow->backend->set_option(burrow->backend_context, option, value);
 }
 
 burrow_result_t burrow_backend_set_option_int(burrow_st *burrow, const char *option, int32_t value)
