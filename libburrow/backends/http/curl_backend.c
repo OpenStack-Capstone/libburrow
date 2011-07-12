@@ -9,6 +9,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef DMALLOC
+#include "dmalloc.h"
+#endif
+
 #include <libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h>
 
 struct burrow_backend_st {
@@ -124,6 +128,7 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
   backend->port = 0;
   backend->baseurl = 0;
   backend->proto_version = strdup("v1.0");
+  backend->buffer = 0;
   backend->chandle = 0;
 
   backend->curlptr = curl_multi_init();
