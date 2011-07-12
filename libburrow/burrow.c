@@ -97,7 +97,7 @@ static void burrow_poll_fds(burrow_st *burrow)
 {
   int count;
   uint32_t watch_size;
-  struct pollfd *pfd, *last_pfd;
+  struct pollfd *pfd;
   
   if (burrow->watch_size == 0) /* nothing to watch */
     return;
@@ -116,6 +116,7 @@ static void burrow_poll_fds(burrow_st *burrow)
   pfd = burrow->pfds;
   
   watch_size = burrow->watch_size;
+  uint32_t which_pfd = 0;
   while(count) {
     if (pfd->revents) { /* Found a live event */
       
@@ -127,22 +128,21 @@ static void burrow_poll_fds(burrow_st *burrow)
         event |= BURROW_IOEVENT_WRITE;
       burrow_event_raised(burrow, pfd->fd, event);
 
-      /* And copy the last pfd to this location */
+      /* And copy the last pfd to this location, if there are more. */
       count--;
-      watch_size--;
-      last_pfd = &burrow->pfds[watch_size - 1];
-      
-      /* But not if we're at the last pfd entry */
-      if (last_pfd > pfd) {
-        pfd->fd = last_pfd->fd;
-        pfd->events = last_pfd->events;
-        pfd->revents = last_pfd->revents;
+      if (which_pfd < (watch_size - 1)) {
+	burrow->pfds[which_pfd] = burrow->pfds[watch_size];
+	--burrow->watch_size;
       }
+
       /* Note that we don't increment pfd here, because this location
          now has new data */
+      ++which_pfd;
     }
-    else
+    else {
       pfd++;
+      which_pfd++;
+    }
   }
   burrow->watch_size = watch_size;
   return;
