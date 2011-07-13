@@ -1,0 +1,30 @@
+# Build system artifacts
+stamp-h1
+autom4te.cache
+libtool
+configure
+Makefile
+Makefile.in
+config.*
+install-sh
+missing
+depcomp
+compile
+aclocal.m4
+
+# Compiled files
+*.lo
+*.o
+*.lo
+
+# Metrics, etc
+lcov/
+*.gcda
+*.gcno
+*.la
+.deps/
+.dirstamp
+.libs/
+
+# OS X
+.DS_Store?
