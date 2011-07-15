@@ -75,9 +75,8 @@ include config/pandora-plugin.am
 check_PROGRAMS = \
 	tests/burrow_filters_st \
 	tests/burrow_st \
-	tests/burrow_backend_dummy
-
-#	tests/burrow_attributes_st
+	tests/burrow_backend_dummy \
+	tests/burrow_attributes_st
 
 TESTS = $(check_PROGRAMS)
 
