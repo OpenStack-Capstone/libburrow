@@ -54,6 +54,10 @@ PANDORA_PLUGINS
 AC_DEFINE_UNQUOTED([BURROW_MODULE_EXT], ["$acl_cv_shlibext"],
                    [Extension to use for modules.])
 
+# Should there be a minimum version of libcurl?
+PKG_CHECK_MODULES([LIBCURL], [libcurl])
+PKG_CHECK_MODULES([LIBCURLNEW], [libcurl >= 7.21.2],[],[AC_DEFINE([CURL_DISABLE_TYPECHECK],[1],[old library])])
+
 AC_CHECK_HEADERS([stdarg.h stdio.h stdlib.h string.h])
 
 AC_CONFIG_FILES(Makefile docs/doxygen/header.html)
