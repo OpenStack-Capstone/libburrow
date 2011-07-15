@@ -45,19 +45,26 @@ struct burrow_backend_functions_st {
   burrow_backend_process_fn *process;
   burrow_backend_event_raised_fn *event_raised;
 
+  /* Params: [filters] */
   burrow_backend_command_fn *get_accounts;
   burrow_backend_command_fn *delete_accounts;
 
+  /* Params: account, [filters] */
   burrow_backend_command_fn *get_queues;
   burrow_backend_command_fn *delete_queues;
 
+  /* Params: account, queue, [filters] */
   burrow_backend_command_fn *get_messages;
-  burrow_backend_command_fn *update_messages;
   burrow_backend_command_fn *delete_messages;
+  /* Params: account, queue, attributes, [filters] */
+  burrow_backend_command_fn *update_messages;
 
+  /* Params: account, queue, message_id, [filters] */
   burrow_backend_command_fn *get_message;
-  burrow_backend_command_fn *update_message;
   burrow_backend_command_fn *delete_message;
+  /* Params: account, queue, message_id, attributes, [filters] */
+  burrow_backend_command_fn *update_message;
+  /* Params: account, queue, message_id, body, body_size, [attributes] */
   burrow_backend_command_fn *create_message;
 };
 
@@ -69,8 +76,7 @@ struct burrow_attributes_st
   uint32_t ttl;
   uint32_t hide;
   
-  /* These may or may not be required for memory management, and
-     are only a front-end concern. */
+  /* These are only a front-end concern. */
   burrow_st *burrow;
   burrow_attributes_st *next;
   burrow_attributes_st *prev;
@@ -86,8 +92,7 @@ struct burrow_filters_st
   burrow_detail_t detail;
   uint32_t wait;
 
-  /* These may or may not be required for memory management, and
-     are only a front-end concern. */
+  /* These are only a front-end concern. */
   burrow_st *burrow;
   burrow_filters_st *next;
   burrow_filters_st *prev;
