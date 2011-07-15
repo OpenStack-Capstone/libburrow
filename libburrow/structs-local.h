@@ -22,6 +22,7 @@
 /* Private */
 struct burrow_command_st
 {
+  burrow_command_t command;
   burrow_backend_command_fn *command_fn;
   const char *account;
   const char *queue;

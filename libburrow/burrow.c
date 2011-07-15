@@ -149,6 +149,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
 
     case BURROW_STATE_FINISH: /* backend is done */
       burrow->state = BURROW_STATE_IDLE; /* we now accept new commands */
+      burrow->cmd.command = BURROW_CMD_NONE;
       if (burrow->complete_fn)
         burrow->complete_fn(burrow); /* could update burrow state by calling a command again */
       break;
@@ -195,6 +196,7 @@ void burrow_cancel(burrow_st *burrow)
   if (burrow->backend->cancel)
     burrow->backend->cancel(burrow->backend_context);
   
+  burrow->cmd.command = BURROW_CMD_NONE;
   burrow->cmd.command_fn = NULL;
 }
 
@@ -267,6 +269,7 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   burrow->context = NULL;
 
   burrow->cmd.command_fn = NULL;
+  burrow->cmd.command = BURROW_CMD_NONE;
 
   burrow->backend_context = backend_fns->create((void *)(burrow + 1), burrow);
   burrow->backend = backend_fns;
@@ -433,6 +436,7 @@ burrow_result_t burrow_get_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_GET_MESSAGE;
   burrow->cmd.command_fn = burrow->backend->get_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -465,6 +469,7 @@ burrow_result_t burrow_create_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_CREATE_MESSAGE;
   burrow->cmd.command_fn = burrow->backend->create_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -498,6 +503,7 @@ burrow_result_t burrow_update_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGE;
   burrow->cmd.command_fn = burrow->backend->update_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -529,6 +535,7 @@ burrow_result_t burrow_delete_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_DELETE_MESSAGE;
   burrow->cmd.command_fn = burrow->backend->delete_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -558,6 +565,7 @@ burrow_result_t burrow_get_messages(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_GET_MESSAGES;
   burrow->cmd.command_fn = burrow->backend->get_messages;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -587,6 +595,7 @@ burrow_result_t burrow_delete_messages(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_DELETE_MESSAGES;
   burrow->cmd.command_fn = burrow->backend->delete_messages;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -617,6 +626,7 @@ burrow_result_t burrow_update_messages(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGES;
   burrow->cmd.command_fn = burrow->backend->update_messages;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
@@ -646,6 +656,7 @@ burrow_result_t burrow_get_queues(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_GET_QUEUES;
   burrow->cmd.command_fn = burrow->backend->get_queues;
   burrow->cmd.account = account;
   burrow->cmd.filters = filters;
@@ -672,6 +683,7 @@ burrow_result_t burrow_delete_queues(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
+  burrow->cmd.command = BURROW_CMD_DELETE_QUEUES;
   burrow->cmd.command_fn = burrow->backend->delete_queues;
   burrow->cmd.account = account;
   burrow->cmd.filters = filters;
@@ -691,6 +703,7 @@ burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *
     return BURROW_ERROR_NOT_READY;
   }
   
+  burrow->cmd.command = BURROW_CMD_GET_ACCOUNTS;
   burrow->cmd.command_fn = burrow->backend->get_accounts;
   burrow->cmd.filters = filters;
   
@@ -710,6 +723,7 @@ burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_s
     return BURROW_ERROR_NOT_READY;
   }
   
+  burrow->cmd.command = BURROW_CMD_DELETE_ACCOUNTS;
   burrow->cmd.command_fn = burrow->backend->delete_accounts;
   burrow->cmd.filters = filters;
   
