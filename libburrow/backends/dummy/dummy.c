@@ -58,7 +58,7 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
 {
   char *id = dummy->message_id;
   uint8_t *body = dummy->body;
-  ssize_t body_size = dummy->body_size;
+  size_t body_size = dummy->body_size;
   burrow_attributes_st attr;
   burrow_attributes_st *attrptr = &attr;
   time_t curtime;
@@ -77,9 +77,9 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
      we have to correct for this. */
 
   /* The differences should be within 32 bits, but time_t may not be signed, so we do this: */
-  attr.ttl = (int32_t)((int64_t)dummy->ttl - (int64_t)curtime);
+  attr.ttl = (uint32_t)(dummy->ttl - curtime);
   if (dummy->hide > 0 && dummy->hide > curtime) {
-    attr.hide = (int32_t)((int64_t)dummy->hide - (int64_t)curtime);
+    attr.hide = (uint32_t)(dummy->hide - curtime);
   } else {
     attr.hide = 0;
   }

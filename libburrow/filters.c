@@ -42,8 +42,8 @@ burrow_filters_st *burrow_filters_create(burrow_filters_st *dest, burrow_st *bur
       dest->next->prev = dest;
   }
   
-  dest->wait = -1;
-  dest->limit = -1;
+  dest->wait = 0;
+  dest->limit = 0;
   dest->marker = NULL;
   dest->detail = BURROW_DETAIL_NONE;
   dest->match_hidden = false;

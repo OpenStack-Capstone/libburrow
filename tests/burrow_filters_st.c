@@ -22,7 +22,7 @@ int main(void)
   burrow_st *burrow;
   burrow_filters_st *filter, *filters[COUNT];
   size_t size;
-  int32_t i;
+  uint32_t i;
   const char *cchar;
   burrow_detail_t detail;
   
