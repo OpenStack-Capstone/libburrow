@@ -51,6 +51,8 @@ AC_LANG_POP
 
 PANDORA_PLUGINS
 
+PKG_CHECK_EXISTS([libcurl >= 7.21.2],[],[AC_DEFINE([CURL_DISABLE_TYPECHECK],[1],[old library])])
+
 AC_DEFINE_UNQUOTED([BURROW_MODULE_EXT], ["$acl_cv_shlibext"],
                    [Extension to use for modules.])
 
