@@ -108,7 +108,7 @@ static void message_with_detail(burrow_backend_dummy_st *dummy, burrow_detail_t 
     burrow_log_debug(dummy->burrow, "message_with_detail: detail level all selected");
     break;
   }
-  dummy->burrow->message_fn(dummy->burrow, id, body, body_size, attrptr);
+  burrow_callback_message(dummy->burrow, id, body, body_size, attrptr);
 }
 
 /* General-purpose function to see if the user's query matches the
@@ -228,7 +228,7 @@ static burrow_result_t burrow_backend_dummy_get_accounts(void *ptr, const burrow
   if (!search_matches(dummy, NULL, NULL, NULL, cmd->filters))
     return BURROW_OK;
 
-  dummy->burrow->account_fn(dummy->burrow, dummy->account);
+  burrow_callback_account(dummy->burrow, dummy->account);
   return BURROW_OK;
 }
 
@@ -248,7 +248,7 @@ static burrow_result_t burrow_backend_dummy_get_queues(void *ptr, const burrow_c
   if (!search_matches(dummy, cmd->account, NULL, NULL, cmd->filters))
     return BURROW_OK;
 
-  dummy->burrow->queue_fn(dummy->burrow, dummy->queue);
+  burrow_callback_queue(dummy->burrow, dummy->queue);
   return BURROW_OK;
 }
 
