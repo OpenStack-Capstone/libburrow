@@ -2,9 +2,9 @@
  * curl_backend
  */
 
-
+#include "config.h"
 #include <curl/curl.h>
-#include <libburrow/burrow.h>
+#include <libburrow/common.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -43,9 +43,9 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
   char buf[1024] = "";
   if (attributes == 0)
     return 0;
-  if (attributes->ttl != -1)
+  if (attributes->set & BURROW_ATTRIBUTES_TTL)
     sprintf(buf, "ttl=%ld:", attributes->ttl);
-  if (attributes->hide != -1) {
+  if (attributes->set & BURROW_ATTRIBUTES_HIDE) {
     if (strlen(buf) > 0)
       sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "hide=%ld", attributes->hide);
@@ -62,25 +62,25 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
 static char *
 burrow_backend_http_filters_to_string(const burrow_filters_st *filters) {
   char buf[1024] = "";
-  if (filters->match_hidden != BURROW_MAYBE) {
-    if (filters->match_hidden == BURROW_TRUE)
+  if (filters->set & BURROW_FILTERS_MATCH_HIDDEN){
+    if (filters->match_hidden == true)
       sprintf(buf, "match_hidden=true");
-    else if (filters->match_hidden == BURROW_FALSE)
+    else if (filters->match_hidden == false)
       sprintf(buf, "match_hidden=false");
   }
-  if (filters->limit != -1) {
+  if (filters->set & BURROW_FILTERS_LIMIT) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "limit=%d", filters->limit);
   }
-  if (filters->marker != 0) {
+  if (filters->set & BURROW_FILTERS_MARKER) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "marker=%s", filters->marker);
   }
-  if (filters->wait != -1) {
+  if (filters->set & BURROW_FILTERS_WAIT) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "wait=%d", filters->wait);
   }
-  if (filters->detail != BURROW_DETAIL_UNSET) {
+  if (filters->set & BURROW_FILTERS_DETAIL) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     if (filters->detail == BURROW_DETAIL_NONE)
       sprintf(buf + strlen(buf), "detail=none");
@@ -100,8 +100,8 @@ burrow_backend_http_filters_to_string(const burrow_filters_st *filters) {
 }
 
 
-static void *
-burrow_backend_http_create(void *ptr, burrow_st *burrow);
+//static void *
+//burrow_backend_http_create(void *ptr, burrow_st *burrow);
 
 static size_t
 burrow_backend_http_size(void){
@@ -137,10 +137,8 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
 
 static void destroy_user_buffer(struct user_buffer_st *buffer);
 
-void burrow_backend_http_free(void * ptr);
-
-void
-burrow_backend_http_free(void * ptr) {
+static void
+burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   if (backend->proto != 0)
     free(backend->proto);
@@ -351,11 +349,18 @@ static int burrow_backend_http_json_callback(void *ctx,
       case JSON_T_OBJECT_END:
 	printf("Ok, got the end of an object\n");
 	
+	/*
 	jproc->backend->burrow->message_fn(jproc->backend->burrow,
 					   jproc->message_id,
 					   (uint8_t *)jproc->body,
 					   (ssize_t)jproc->body_size,
 					   jproc->attributes);
+	*/
+	burrow_callback_message(jproc->backend->burrow,
+				jproc->message_id,
+				(uint8_t *)jproc->body,
+				jproc->body_size,
+				jproc->attributes);
 	free(jproc->message_id);
 	jproc->message_id = 0;
 	free(jproc->body);
@@ -458,11 +463,14 @@ static int burrow_backend_http_parse_json(burrow_backend_t *backend,
 
 static burrow_result_t
 burrow_backend_http_create_message(void *ptr,
-				   const char *account, const char *queue,
-				   const char *message_id, const uint8_t *body,
-				   size_t body_size,
-				   const burrow_attributes_st *attributes)
+				   const burrow_command_st *cmd)
 {
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const char *message_id = cmd->message_id;
+  const uint8_t *body = cmd->body;
+  size_t body_size = cmd->body_size;
+  const burrow_attributes_st *attributes = cmd->attributes;
   burrow_backend_t * backend = (burrow_backend_t *)ptr;
   
   CURL *chandle = curl_easy_init();
@@ -484,6 +492,7 @@ printf("create_message url = \"%s\"\n", url);
   user_buffer *buffer = create_user_buffer(0, body);
   curl_easy_setopt(chandle, CURLOPT_READFUNCTION, read_function);
   curl_easy_setopt(chandle, CURLOPT_READDATA, buffer);
+
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(chandle, CURLOPT_INFILESIZE, body_size);
 
@@ -534,7 +543,7 @@ burrow_backend_http_process(void *ptr) {
       if (FD_ISSET(i, &exec_fd_set))
 	fprintf(stderr, "WARNING!  libcurl wants to monitor exceptions on %d, but we cannot.\n", i);
       if (burrow_event != BURROW_IOEVENT_NONE) {
-	backend->burrow->watch_fd_fn(backend->burrow, i, burrow_event);
+	burrow_watch_fd(backend->burrow, i, burrow_event);
       }
     }
     return BURROW_OK_WAITING;
@@ -581,41 +590,46 @@ burrow_backend_http_event_raised(void *ptr,
 
 static burrow_result_t
 burrow_backend_http_get_accounts(void* ptr,
-				 const burrow_filters_st *filters)
+				 const burrow_command_st *cmd)
 {
   /* stub */
   (void) ptr;
-  (void)filters;
+  (void)cmd;
   return BURROW_OK;
 }
 
 static burrow_result_t
-burrow_backend_http_get_queues(void *ptr, const char *account,
-				const burrow_filters_st *filters)
+burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
 {
   /* stub */
   (void) ptr;
-  (void) account;
+  (void) cmd;
+  const burrow_filters_st *filters = cmd->filters; 
+  const char *account = cmd->account;
   (void) filters;
+  (void) account;
   return BURROW_OK;
 }
 
 static burrow_result_t
-burrow_backend_http_delete_accounts(void *ptr, const burrow_filters_st *filters)
+burrow_backend_http_delete_accounts(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   /* stub */
+  const burrow_filters_st *filters = cmd->filters;
   (void)backend;
   (void)filters;
   return BURROW_OK;
 }
 
 static burrow_result_t
-burrow_backend_http_delete_queues(void *ptr, const char *account,
-				   const burrow_filters_st *filters)
+burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   /* stub */
+  const char *account = cmd->account;
+  const burrow_filters_st *filters = cmd->filters;
+
   (void) backend;
   (void) account;
   (void) filters;
@@ -623,9 +637,12 @@ burrow_backend_http_delete_queues(void *ptr, const char *account,
 }
 
 static burrow_result_t
-burrow_backend_http_delete_messages(void *ptr, const char *account, const char *queue, const burrow_filters_st *filters)
+burrow_backend_http_delete_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *) ptr;
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const burrow_filters_st *filters = cmd->filters;
   (void)backend;
   (void)account;
   (void)queue;
@@ -634,36 +651,48 @@ burrow_backend_http_delete_messages(void *ptr, const char *account, const char *
 }
 
 static burrow_result_t
-burrow_backend_http_delete_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_filters_st *filters)
+burrow_backend_http_delete_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const char *message_id = cmd->message_id;
+  const burrow_filters_st *filters = cmd->filters;
+
   (void)backend;
   (void)account;
   (void)queue;
-  (void)id;
+  (void)message_id;
   (void)filters;
   return BURROW_OK;
 }
 
 static burrow_result_t
-burrow_backend_http_get_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_filters_st *filters)
+burrow_backend_http_get_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const char *message_id = cmd->message_id;
+  const burrow_filters_st *filters = cmd->filters;
+  
   (void)backend;
   (void)account;
   (void)queue;
-  (void)id;
+  (void)message_id;
   (void)filters;
   return BURROW_OK;
 }
 
 
 static burrow_result_t
-burrow_backend_http_get_messages(void *ptr, const char *account,
-				 const char *queue,
-				 const burrow_filters_st *filters)
+burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const burrow_filters_st *filters = cmd->filters;
+
   CURL *chandle = curl_easy_init();
 
   char *filter_str = burrow_backend_http_filters_to_string(filters);
@@ -705,22 +734,35 @@ burrow_backend_http_get_messages(void *ptr, const char *account,
   return burrow_backend_http_process(backend);
 }
 
-static burrow_result_t burrow_backend_http_update_message(void *ptr, const char *account, const char *queue, const char *id, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
+static burrow_result_t
+burrow_backend_http_update_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
+
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const char *message_id = cmd->message_id;
+  const burrow_attributes_st *attributes = cmd->attributes;
+  const burrow_filters_st *filters = cmd->filters;
   
   (void)backend;
   (void)account;
   (void)queue;
-  (void)id;
+  (void)message_id;
   (void)filters;
   (void)attributes;
   return BURROW_OK;
 }
 
-static burrow_result_t burrow_backend_http_update_messages(void *ptr, const char *account, const char *queue, const burrow_attributes_st *attributes, const burrow_filters_st *filters)
+static burrow_result_t
+burrow_backend_http_update_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const burrow_attributes_st *attributes = cmd->attributes;
+  const burrow_filters_st *filters = cmd->filters;
+
   (void)backend;
   (void)account;
   (void)queue;
@@ -735,7 +777,7 @@ static burrow_result_t burrow_backend_http_update_messages(void *ptr, const char
    is acceptable. We can, however, default to C90 style if req'd. */
 burrow_backend_functions_st burrow_backend_http_functions = {
   .create = &burrow_backend_http_create,
-  .free = &burrow_backend_http_free,
+  .destroy = &burrow_backend_http_destroy,
   .size = &burrow_backend_http_size,
   .clone = &burrow_backend_http_clone,
 

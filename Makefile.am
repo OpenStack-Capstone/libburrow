@@ -44,10 +44,9 @@ libburrow_la_SOURCES = \
 	libburrow/backends/dummy/dummy.c \
 	libburrow/attributes.c \
 	libburrow/filters.c \
-	libburrow/backends.c
-
-#	libburrow/backends/http/curl_backend.c \
-#	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c
+	libburrow/backends.c \
+	libburrow/backends/http/curl_backend.c \
+	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c
 
 
 nobase_include_HEADERS += \
