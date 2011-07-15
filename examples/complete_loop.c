@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
   /* This runs until there are no more tasks. */
   burrow_process(burrow);
-  burrow_free(burrow);
+  burrow_destroy(burrow);
 
   return client.return_code;
 }

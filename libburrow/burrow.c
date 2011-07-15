@@ -15,11 +15,20 @@
 
 
 #include "common.h"
-#include <stdio.h>
 
 /* Functions visible to the backend: */
 
-static void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent_t events)
+const char *_error_strings[] = {
+  "***MAX***",
+  "DEBUG",
+  "INFO",
+  "WARN",
+  "ERROR",
+  "FATAL",
+  "***NONE***",
+};
+
+void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
   uint32_t count;
@@ -45,52 +54,6 @@ static void burrow_default_watch_fd_fn(burrow_st *burrow, int fd, burrow_ioevent
     pfd->events |= POLLIN;
   if (events & BURROW_IOEVENT_WRITE)
     pfd->events |= POLLOUT;
-}
-
-static burrow_result_t burrow_start_command(burrow_st *burrow)
-{
-  void *context = burrow->backend_context;
-  burrow_command_st *cmd = &burrow->cmd;
-  
-  switch(cmd->command) {
-    case BURROW_CMD_GET_ACCOUNTS:
-      return burrow->backend->get_accounts(context, cmd->filters);
-      
-    case BURROW_CMD_DELETE_ACCOUNTS:
-      return burrow->backend->delete_accounts(context, cmd->filters);
-
-    case BURROW_CMD_GET_QUEUES:
-      return burrow->backend->get_queues(context, cmd->account, cmd->filters);
-
-    case BURROW_CMD_DELETE_QUEUES:
-      return burrow->backend->delete_queues(context, cmd->account, cmd->filters);
-
-    case BURROW_CMD_GET_MESSAGES:
-      return burrow->backend->get_messages(context, cmd->account, cmd->queue, cmd->filters);
-    
-    case BURROW_CMD_UPDATE_MESSAGES:
-      return burrow->backend->update_messages(context, cmd->account, cmd->queue, cmd->attributes, cmd->filters);
-    
-    case BURROW_CMD_DELETE_MESSAGES:
-      return burrow->backend->delete_messages(context, cmd->account, cmd->queue, cmd->filters);
-
-    case BURROW_CMD_GET_MESSAGE:
-      return burrow->backend->get_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->filters);
-    
-    case BURROW_CMD_UPDATE_MESSAGE:
-      return burrow->backend->update_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->attributes, cmd->filters);
-    
-    case BURROW_CMD_DELETE_MESSAGE:
-      return burrow->backend->delete_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->filters);
-
-    case BURROW_CMD_CREATE_MESSAGE:
-      return burrow->backend->create_message(context, cmd->account, cmd->queue, cmd->message_id, cmd->body, cmd->body_size, cmd->attributes);
-
-    case BURROW_CMD_NONE:
-    default:
-      /* log error */
-      return BURROW_ERROR_UNSUPPORTED;
-  }
 }
 
 static void burrow_poll_fds(burrow_st *burrow)
@@ -131,12 +94,12 @@ static void burrow_poll_fds(burrow_st *burrow)
       /* And copy the last pfd to this location, if there are more. */
       count--;
       if (which_pfd < (watch_size - 1)) {
-	burrow->pfds[which_pfd] = burrow->pfds[watch_size];
-	--burrow->watch_size;
+        burrow->pfds[which_pfd] = burrow->pfds[watch_size];
+        --burrow->watch_size;
       }
 
       /* Note that we don't increment pfd here, because this location
-         now has new data */
+         now has new data. BUG: I think this addition is buggy? */
       ++which_pfd;
     }
     else {
@@ -161,7 +124,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
     switch(burrow->state) {
     
     case BURROW_STATE_START: /* command is initialized, but hasn't kicked off */
-      result = burrow_start_command(burrow);
+      result = burrow->cmd.command_fn(burrow->backend_context, &burrow->cmd);
       if (result == BURROW_OK_WAITING)
         burrow->state = BURROW_STATE_WAITING;
       else /* could be error or OK */
@@ -232,14 +195,15 @@ void burrow_cancel(burrow_st *burrow)
   if (burrow->backend->cancel)
     burrow->backend->cancel(burrow->backend_context);
   
-  burrow->cmd.command = BURROW_CMD_NONE;
+  burrow->cmd.command_fn = NULL;
 }
 
 /* Burrow Object Functions */
+#if 0
 static void burrow_default_message_fn(burrow_st *burrow,
                                       const char *message_id,
-                                      const uint8_t *body,
-                                      ssize_t body_size,
+                                      const void *body,
+                                      size_t body_size,
                                       const burrow_attributes_st *attributes)
 {
   (void) burrow;
@@ -250,20 +214,18 @@ static void burrow_default_message_fn(burrow_st *burrow,
   burrow_log_info(burrow, "burrow_default_message_fn: called, msgid: '%s', body size %d", message_id, body_size);
 }
 
-static void burrow_default_queues_fn(burrow_st *burrow, char **queues, size_t size)
+static void burrow_default_queue_fn(burrow_st *burrow, const char *queue)
 {
   (void) burrow;
-  (void) queues;
-  (void) size;
-  burrow_log_info(burrow, "burrow_default_queues_fn: called, %u queues", size);
+  (void) queue;
+  burrow_log_info(burrow, "burrow_default_queues_fn: called, queue: %s", queue);
 }
 
-static void burrow_default_accounts_fn(burrow_st *burrow, char **accounts, size_t size)
+static void burrow_default_account_fn(burrow_st *burrow, const char *account)
 {
   (void) burrow;
-  (void) accounts;
-  (void) size;
-  burrow_log_info(burrow, "burrow_default_accounts_fn: called, %u accounts", size);
+  (void) account;
+  burrow_log_info(burrow, "burrow_default_accounts_fn: called, account: %s", account);
 }
 
 static void burrow_default_complete_fn(burrow_st *burrow)
@@ -272,33 +234,12 @@ static void burrow_default_complete_fn(burrow_st *burrow)
   burrow_log_info(burrow, "burrow_default_complete_fn: called");
 }
 
-static void *burrow_default_malloc_fn(burrow_st *burrow, size_t size)
-{
-  (void) burrow;
-  return malloc(size);
-}
-
-static void burrow_default_free_fn(burrow_st *burrow, void *ptr)
-{
-  (void) burrow;
-  free(ptr);
-}
-
-const char *_error_strings[] = {
-  "***NONE***", /* BURROW_VERBOSE_NONE, */
-  "FATAL", /* BURROW_VERBOSE_FATAL, */
-  "ERROR", /* BURROW_VERBOSE_ERROR, */
-  "WARN", /* BURROW_VERBOSE_WARN, */
-  "INFO", /* BURROW_VERBOSE_INFO, */
-  "DEBUG", /* BURROW_VERBOSE_DEBUG, */
-  "***MAX***", /* BURROW_VERBOSE_MAX */  
-};
-
 static void burrow_default_log_fn(burrow_st *burrow, burrow_verbose_t verbose, const char *msg)
 {
   (void) burrow;
   printf("libburrow(%s): %s\n", _error_strings[verbose], msg);
 }
+#endif
 
 burrow_st *burrow_create(burrow_st *burrow, const char *backend)
 {
@@ -323,20 +264,22 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   burrow->options = 0;
   burrow->verbose = BURROW_VERBOSE_DEFAULT;
   burrow->state = BURROW_STATE_IDLE;
-  burrow->cmd.command = BURROW_CMD_NONE;
   burrow->context = NULL;
+
+  burrow->cmd.command_fn = NULL;
+
   burrow->backend_context = backend_fns->create((void *)(burrow + 1), burrow);
   burrow->backend = backend_fns;
 
-  burrow->malloc_fn   = &burrow_default_malloc_fn;
-  burrow->free_fn     = &burrow_default_free_fn;
+  burrow->malloc_fn   = NULL;
+  burrow->free_fn     = NULL;
   
-  burrow->message_fn  = &burrow_default_message_fn;
-  burrow->queues_fn   = &burrow_default_queues_fn;
-  burrow->accounts_fn = &burrow_default_accounts_fn;
-  burrow->log_fn      = &burrow_default_log_fn;
-  burrow->complete_fn = &burrow_default_complete_fn;
-  burrow->watch_fd_fn = &burrow_default_watch_fd_fn;
+  burrow->message_fn  = NULL;
+  burrow->queue_fn    = NULL;
+  burrow->account_fn  = NULL;
+  burrow->complete_fn = NULL;
+  burrow->watch_fd_fn = NULL;
+  burrow->log_fn      = NULL; /* the only nulled callback, see burrow_log */
   
   burrow->pfds = NULL;
   burrow->pfds_size = 0;
@@ -349,24 +292,25 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   return burrow;
 }
 
-void burrow_free(burrow_st *burrow)
+void burrow_destroy(burrow_st *burrow)
 {
   /* TODO: more */
-  burrow->backend->free((void*)(burrow+1));
+  burrow->backend->destroy((void*)(burrow+1));
   if (burrow->pfds != NULL) {
-    burrow->free_fn(burrow, burrow->pfds);
+    burrow_free(burrow, burrow->pfds);
     burrow->pfds = NULL;
   }
  
-  burrow_log_info(burrow, "burrow_free: attributes list %c= NULL", (burrow->attributes_list == NULL ? '=' : '!')); 
+  burrow_log_debug(burrow, "burrow_destroy: attributes list %c= NULL", (burrow->attributes_list == NULL ? '=' : '!')); 
   while (burrow->attributes_list != NULL)
     burrow_attributes_free(burrow->attributes_list);
 
+  burrow_log_debug(burrow, "burrow_destroy: filters list %c= NULL", (burrow->filters_list == NULL ? '=' : '!')); 
   while (burrow->filters_list != NULL)
     burrow_filters_free(burrow->filters_list);
 
   if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
-    free(burrow);
+    burrow_free(burrow, burrow);
   }
 }
 
@@ -381,18 +325,6 @@ ssize_t burrow_size(const char *backend)
   return (ssize_t)(sizeof(burrow_st) + backend_fns->size());
 }
 
-/**
- * Clones a burrow object in its entirety. Any ongoing commands/state will not
- * be present in the cloned object. If no destination is specified, one will
- * be allocated using the source's malloc function.
- *
- * If dest is not NULL, it must be of sufficient size to support the incoming
- * source structure. Otherwise, behavior is undefined.
- *
- * @param dest Destination burrow objec; can be NULL
- * @param src Source burrow object; must not be NULL
- * @return The cloned burrow object, or NULL on error
- */
 burrow_st *burrow_clone(burrow_st *dest, burrow_st *src)
 {
   /* this is tricky.... TODO: think this through w/r/t appended backends! */
@@ -450,14 +382,14 @@ void burrow_set_message_fn(burrow_st *burrow, burrow_message_fn *callback)
   burrow->message_fn = callback;
 }
 
-void burrow_set_accounts_fn(burrow_st *burrow, burrow_accounts_fn *callback)
+void burrow_set_account_fn(burrow_st *burrow, burrow_account_fn *callback)
 {
-  burrow->accounts_fn = callback;
+  burrow->account_fn = callback;
 }
 
-void burrow_set_queues_fn(burrow_st *burrow, burrow_queues_fn *callback)
+void burrow_set_queue_fn(burrow_st *burrow, burrow_queue_fn *callback)
 {
-  burrow->queues_fn = callback;
+  burrow->queue_fn = callback;
 }
 
 void burrow_set_log_fn(burrow_st *burrow, burrow_log_fn *callback)
@@ -501,7 +433,7 @@ burrow_result_t burrow_get_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_GET_MESSAGE;
+  burrow->cmd.command_fn = burrow->backend->get_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.message_id = message_id;
@@ -533,7 +465,7 @@ burrow_result_t burrow_create_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_CREATE_MESSAGE;
+  burrow->cmd.command_fn = burrow->backend->create_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.message_id = message_id;
@@ -566,7 +498,7 @@ burrow_result_t burrow_update_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGE;
+  burrow->cmd.command_fn = burrow->backend->update_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.message_id = message_id;
@@ -597,7 +529,7 @@ burrow_result_t burrow_delete_message(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_DELETE_MESSAGE;
+  burrow->cmd.command_fn = burrow->backend->delete_message;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.message_id = message_id;
@@ -626,7 +558,7 @@ burrow_result_t burrow_get_messages(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_GET_MESSAGES;
+  burrow->cmd.command_fn = burrow->backend->get_messages;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.filters = filters;
@@ -655,7 +587,7 @@ burrow_result_t burrow_delete_messages(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_DELETE_MESSAGES;
+  burrow->cmd.command_fn = burrow->backend->delete_messages;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.filters = filters;
@@ -685,7 +617,7 @@ burrow_result_t burrow_update_messages(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGES;
+  burrow->cmd.command_fn = burrow->backend->update_messages;
   burrow->cmd.account = account;
   burrow->cmd.queue = queue;
   burrow->cmd.filters = filters;
@@ -714,7 +646,7 @@ burrow_result_t burrow_get_queues(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_GET_QUEUES;
+  burrow->cmd.command_fn = burrow->backend->get_queues;
   burrow->cmd.account = account;
   burrow->cmd.filters = filters;
   
@@ -740,7 +672,7 @@ burrow_result_t burrow_delete_queues(burrow_st *burrow,
     return BURROW_ERROR_BAD_ARGS;
   }
   
-  burrow->cmd.command = BURROW_CMD_DELETE_QUEUES;
+  burrow->cmd.command_fn = burrow->backend->delete_queues;
   burrow->cmd.account = account;
   burrow->cmd.filters = filters;
   
@@ -759,7 +691,7 @@ burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *
     return BURROW_ERROR_NOT_READY;
   }
   
-  burrow->cmd.command = BURROW_CMD_GET_ACCOUNTS;
+  burrow->cmd.command_fn = burrow->backend->get_accounts;
   burrow->cmd.filters = filters;
   
   burrow->state = BURROW_STATE_START;
@@ -778,7 +710,7 @@ burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_s
     return BURROW_ERROR_NOT_READY;
   }
   
-  burrow->cmd.command = BURROW_CMD_DELETE_ACCOUNTS;
+  burrow->cmd.command_fn = burrow->backend->delete_accounts;
   burrow->cmd.filters = filters;
   
   burrow->state = BURROW_STATE_START;
@@ -789,95 +721,7 @@ burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_s
   return BURROW_OK;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void burrow_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args);
-
-void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...)
-{
-  va_list args;
-  (void) error;
-
-  if (burrow->verbose <= BURROW_VERBOSE_ERROR) {
-    va_start(args, msg);
-    burrow_log(burrow, BURROW_VERBOSE_ERROR, msg, args);
-    va_end(args);
-  }
-}
-
-void burrow_log_fatal(burrow_st *burrow, const char *msg, ...)
-{
-  va_list args;
-
-  if (burrow->verbose <= BURROW_VERBOSE_FATAL) {
-    va_start(args, msg);
-    burrow_log(burrow, BURROW_VERBOSE_FATAL, msg, args);
-    va_end(args);
-  }
-}
-
-void burrow_log_error(burrow_st *burrow, const char *msg, ...)
-{
-  va_list args;
-
-  if (burrow->verbose <= BURROW_VERBOSE_ERROR) {
-    va_start(args, msg);
-    burrow_log(burrow, BURROW_VERBOSE_ERROR, msg, args);
-    va_end(args);
-  }
-}
-
-void burrow_log_warn(burrow_st *burrow, const char *msg, ...)
-{
-  va_list args;
-
-  if (burrow->verbose <= BURROW_VERBOSE_WARN) {
-    va_start(args, msg);
-    burrow_log(burrow, BURROW_VERBOSE_WARN, msg, args);
-    va_end(args);
-  }
-}
-
-void burrow_log_info(burrow_st *burrow, const char *msg, ...)
-{
-  va_list args;
-
-  if (burrow->verbose <= BURROW_VERBOSE_INFO) {
-    va_start(args, msg);
-    burrow_log(burrow, BURROW_VERBOSE_INFO, msg, args);
-    va_end(args);
-  }
-}
-
-void burrow_log_debug(burrow_st *burrow, const char *msg, ...)
-{
-  va_list args;
-
-  if (burrow->verbose <= BURROW_VERBOSE_DEBUG) {
-    va_start(args, msg);
-    burrow_log(burrow, BURROW_VERBOSE_DEBUG, msg, args);
-    va_end(args);
-  }
-}
-
-void burrow_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args)
+void burrow_internal_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args)
 { 
   char buffer[BURROW_MAX_ERROR_SIZE];
 

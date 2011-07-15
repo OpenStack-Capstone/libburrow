@@ -45,8 +45,9 @@ burrow_filters_st *burrow_filters_create(burrow_filters_st *dest, burrow_st *bur
   dest->wait = -1;
   dest->limit = -1;
   dest->marker = NULL;
-  dest->detail = BURROW_DETAIL_UNSET;
-  dest->match_hidden = BURROW_MAYBE;
+  dest->detail = BURROW_DETAIL_NONE;
+  dest->match_hidden = false;
+  dest->set = BURROW_FILTERS_NONE;
   
   return dest;
 }
@@ -67,6 +68,7 @@ burrow_filters_st *burrow_filters_clone(burrow_filters_st *dest, const burrow_fi
   dest->marker = src->marker;
   dest->detail = src->detail;
   dest->match_hidden = src->match_hidden;
+  dest->set = src->set;
   return dest;
 }
 
@@ -90,39 +92,51 @@ void burrow_filters_free(burrow_filters_st *filters)
   }
 }
 
-void burrow_filters_set_match_hidden(burrow_filters_st *filters, burrow_tribool_t match_hidden)
+void burrow_filters_unset(burrow_filters_st *filters, burrow_filters_set_t set)
+{
+  /* TODO: if copystrings, then we need to dealloc our marker */
+  filters->set = set;
+}
+
+bool burrow_filters_check(burrow_filters_st *filters, burrow_filters_set_t set)
+{
+  return (filters->set & set);  /* if ANY are set, not if ALL are set */
+}
+
+void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidden)
 {
   filters->match_hidden = match_hidden;
+  filters->set |= BURROW_FILTERS_MATCH_HIDDEN;
 }
 
 void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id)
 {
   /* TODO: if copy strings is implemented, we need to copy the user input */
   filters->marker = marker_id;
+  filters->set |= BURROW_FILTERS_MARKER;
 }
 
-void burrow_filters_set_limit(burrow_filters_st *filters, int32_t limit)
+void burrow_filters_set_limit(burrow_filters_st *filters, uint32_t limit)
 {
-  if (limit < 0)
-    limit = -1;
   filters->limit = limit;
+  filters->set |= BURROW_FILTERS_LIMIT;
 }
 
-void burrow_filters_set_wait(burrow_filters_st *filters, int32_t wait_time)
+void burrow_filters_set_wait(burrow_filters_st *filters, uint32_t wait_time)
 {
-  if (wait_time < 0)
-    wait_time = -1;
   filters->wait = wait_time;
+  filters->set |= BURROW_FILTERS_WAIT;
 }
 
 
 void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detail)
 {
   filters->detail = detail;
+  filters->set |= BURROW_FILTERS_DETAIL;
 }
 
 
-burrow_tribool_t burrow_filters_get_match_hidden(burrow_filters_st *filters)
+bool burrow_filters_get_match_hidden(burrow_filters_st *filters)
 {
   return filters->match_hidden;
 }
@@ -132,12 +146,12 @@ const char *burrow_filters_get_marker(burrow_filters_st *filters)
   return filters->marker;
 }
 
-int32_t burrow_filters_get_limit(burrow_filters_st *filters)
+uint32_t burrow_filters_get_limit(burrow_filters_st *filters)
 {
   return filters->limit;
 }
 
-int32_t burrow_filters_get_wait(burrow_filters_st *filters)
+uint32_t burrow_filters_get_wait(burrow_filters_st *filters)
 {
   return filters->wait;
 }

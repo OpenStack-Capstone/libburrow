@@ -20,9 +20,8 @@
 # include <stdbool.h>
 #endif
 
-#include <inttypes.h>
-#include <sys/types.h>
-#include <poll.h>
+#include <inttypes.h> /* for uint32_t, etc */
+#include <sys/types.h> /* for size_t, etc */
 
 #include <libburrow/visibility.h>
 #include <libburrow/constants.h>
@@ -54,7 +53,7 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend);
  * @param burrow Burrow object to be freed
  */
 BURROW_API
-void burrow_free(burrow_st *burrow);
+void burrow_destroy(burrow_st *burrow);
 
 /**
  * Returns the size required to allocate a burrow object, optionally
@@ -166,24 +165,22 @@ BURROW_API
 void burrow_set_message_fn(burrow_st *burrow, burrow_message_fn *callback);
 
 /**
- * Sets the accounts-list-received callback. Called when a list of
- * accounts is received.
+ * Sets the account-received callback. Called when account detail is received.
  *
  * @param burrow Burrow object
- * @param callback Pointer to accounts-list-received function
+ * @param callback Pointer to account-received function
  */
 BURROW_API
-void burrow_set_accounts_fn(burrow_st *burrow, burrow_accounts_fn *callback);
+void burrow_set_account_fn(burrow_st *burrow, burrow_account_fn *callback);
 
 /**
- * Sets the queue-list-received callback. Called when a list of
- * queues is received.
+ * Sets the queue-received callback. Called when queue detail is received.
  *
  * @param burrow Burrow object
- * @param callback Pointer to queue-list-received function
+ * @param callback Pointer to queue-received function
  */
 BURROW_API
-void burrow_set_queues_fn(burrow_st *burrow, burrow_queues_fn *callback);
+void burrow_set_queue_fn(burrow_st *burrow, burrow_queue_fn *callback);
 
 /**
  * Sets the logging function. Note that this function doubles as an error
@@ -461,25 +458,6 @@ burrow_result_t burrow_process(burrow_st *burrow);
  */
 BURROW_API
 burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
-
-
-
-
-
-
-/* TODO: Not sure where these should go yet; here for now: */
-
-void burrow_log_info(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_debug(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_warn(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_error(burrow_st *burrow, const char *msg, ...);
-
-void burrow_log_fatal(burrow_st *burrow, const char *msg, ...);
-
-void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...);
 
 #ifdef  __cplusplus
 }

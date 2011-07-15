@@ -16,13 +16,13 @@
 
 int main(void)
 {
-  const int COUNT = 7;
-  const int TTL = 100;
-  const int HIDE = 10;
+  const size_t COUNT = 7;
+  const uint32_t TTL = 100;
+  const uint32_t HIDE = 10;
   
   burrow_st *burrow;
   burrow_attributes_st *attr, *attr2, *attr3, *attr4, *attr5;
-  int32_t v;
+  uint32_t v;
   size_t size;
   int i;
   
@@ -71,8 +71,8 @@ int main(void)
   burrow_test("burrow_attributes_free");
   burrow_attributes_free(attr);
   
-  burrow_test("burrow_free");
-  burrow_free(burrow);
+  burrow_test("burrow_destroy");
+  burrow_destroy(burrow);
  
   /* Test multiple managed attributes at once */
   
@@ -93,8 +93,8 @@ int main(void)
   burrow_attributes_free(attr3); /* middle */
   burrow_attributes_free(attr5); /* end */
   
-  burrow_test("burrow_free managed");
-  burrow_free(burrow);
+  burrow_test("burrow_destroy managed");
+  burrow_destroy(burrow);
   
   /* Test non-managed attributes */
   
@@ -109,6 +109,6 @@ int main(void)
       burrow_test_error("returned NULL")
   }
   
-  burrow_free(burrow);
+  burrow_destroy(burrow);
   free(attr);
 }

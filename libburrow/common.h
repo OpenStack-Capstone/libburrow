@@ -13,7 +13,16 @@
 #include <stdarg.h>
 #endif
 
+#include <stdio.h>
+
+#include <poll.h>
+
+
 #include "burrow.h"
+#include "structs-local.h"
+#include "internal.h"
+
 #include "backends.h"
+#include "macros.h"
 
 #endif

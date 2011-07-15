@@ -44,9 +44,10 @@ libburrow_la_SOURCES = \
 	libburrow/backends/dummy/dummy.c \
 	libburrow/attributes.c \
 	libburrow/filters.c \
-	libburrow/backends.c \
-	libburrow/backends/http/curl_backend.c \
-	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c
+	libburrow/backends.c
+
+#	libburrow/backends/http/curl_backend.c \
+#	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c
 
 
 nobase_include_HEADERS += \
@@ -70,6 +71,13 @@ libburrow_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBBURROW_VERSION)
 #
 
 include config/pandora-plugin.am
+
+check_PROGRAMS = \
+	tests/burrow_filters_st \
+	tests/burrow_st \
+	tests/burrow_backend_dummy
+
+#	tests/burrow_attributes_st
 
 TESTS = $(check_PROGRAMS)
 
@@ -98,12 +106,6 @@ check-strace:
 
 check-truss:
 	@LIBBURROW_TEST_PREFIX="truss -c" make check
-
-check_PROGRAMS = \
-	tests/burrow_attributes_st \
-	tests/burrow_filters_st \
-	tests/burrow_st \
-	tests/burrow_backend_dummy
 
 docs: all
 	@echo "/**" > docs/doxygen/mainpage.h

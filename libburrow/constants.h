@@ -22,7 +22,6 @@ extern "C" {
 #endif
 
 #define BURROW_MAX_ERROR_SIZE 1024
-
 #define BURROW_VERBOSE_DEFAULT BURROW_VERBOSE_ALL
 
 typedef enum {
@@ -79,7 +78,6 @@ typedef enum {
 } burrow_flags_t; 
   
 typedef enum {
-  BURROW_DETAIL_UNSET,
   BURROW_DETAIL_NONE,
   BURROW_DETAIL_ID,
   BURROW_DETAIL_ATTRIBUTES,
@@ -108,10 +106,21 @@ typedef enum {
 } burrow_result_t;
 
 typedef enum {
-  BURROW_MAYBE = -1,
-  BURROW_FALSE = 0,
-  BURROW_TRUE = 1
-} burrow_tribool_t;
+  BURROW_ATTRIBUTES_NONE = 0,
+  BURROW_ATTRIBUTES_TTL  = (1 << 0),
+  BURROW_ATTRIBUTES_HIDE = (1 << 1),
+  BURROW_ATTRIBUTES_ALL = ~BURROW_ATTRIBUTES_NONE
+} burrow_attributes_set_t;
+
+typedef enum {
+  BURROW_FILTERS_NONE         = 0,
+  BURROW_FILTERS_MATCH_HIDDEN = (1 << 0),
+  BURROW_FILTERS_LIMIT        = (1 << 1),
+  BURROW_FILTERS_MARKER       = (1 << 2),
+  BURROW_FILTERS_DETAIL       = (1 << 3),
+  BURROW_FILTERS_WAIT         = (1 << 4),
+  BURROW_FILTERS_ALL = ~BURROW_FILTERS_NONE
+} burrow_filters_set_t;
 
 /* Used publicly */
 typedef struct burrow_filters_st burrow_filters_st;
@@ -125,17 +134,17 @@ typedef struct burrow_backend_functions_st burrow_backend_functions_st;
 /* Function pointers for user callbacks */
 typedef void (burrow_message_fn)(burrow_st *burrow,
                                  const char *message_id,
-                                 const uint8_t *body,
-                                 ssize_t body_size,
+                                 const void *body,
+                                 size_t body_size,
                                  const burrow_attributes_st *attributes);
 
-typedef void (burrow_queues_fn)(burrow_st *burrow, char **queues, size_t size);
+typedef void (burrow_queue_fn)(burrow_st *burrow, const char *queue);
 
-typedef void (burrow_accounts_fn)(burrow_st *burrow, char **accounts, size_t size);
+typedef void (burrow_account_fn)(burrow_st *burrow, const char *account);
 
 typedef void (burrow_log_fn)(burrow_st *burrow, burrow_verbose_t verbose, const char *msg);
 
-typedef void (burrow_complete_fn)(burrow_st *burrow /*, burrow_result_t result */);
+typedef void (burrow_complete_fn)(burrow_st *burrow);
 
 typedef void (burrow_watch_fd_fn)(burrow_st *burrow, int fd, burrow_ioevent_t event);
 
@@ -145,7 +154,7 @@ typedef void (burrow_free_fn)(burrow_st *burrow, void *ptr);
 
 /* Function pointers used for backend communication */
 typedef void *(burrow_backend_create_fn)(void *dest, burrow_st *burrow);
-typedef void (burrow_backend_free_fn)(void *backend);
+typedef void (burrow_backend_destroy_fn)(void *backend);
 typedef size_t (burrow_backend_size_fn)(void);
 typedef void *(burrow_backend_clone_fn)(void *dst, void *src);
 
@@ -155,20 +164,7 @@ typedef void (burrow_backend_cancel_fn)(void *backend);
 typedef burrow_result_t (burrow_backend_process_fn)(void *backend);
 typedef burrow_result_t (burrow_backend_event_raised_fn)(void *backend, int fd, burrow_ioevent_t event);
 
-typedef burrow_result_t (burrow_get_accounts_fn)(void *backend, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_delete_accounts_fn)(void *backend, const burrow_filters_st *filters);
-
-typedef burrow_result_t (burrow_get_queues_fn)(void *backend, const char *account, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_delete_queues_fn)(void *backend, const char *account, const burrow_filters_st *filters);
-
-typedef burrow_result_t (burrow_get_messages_fn)(void *backend, const char *account, const char *queue, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_delete_messages_fn)(void *backend, const char *account, const char *queue, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_update_messages_fn)(void *backend, const char *account, const char *queue, const burrow_attributes_st *attributes, const burrow_filters_st *filters);
-
-typedef burrow_result_t (burrow_get_message_fn)(void *backend, const char *account, const char *queue, const char *id, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_update_message_fn)(void *backend, const char *account, const char *queue, const char *id, const burrow_attributes_st *attributes, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_delete_message_fn)(void *backend, const char *account, const char *queue, const char *id, const burrow_filters_st *filters);
-typedef burrow_result_t (burrow_create_message_fn)(void *backend, const char *account, const char *queue, const char *id, const uint8_t *body, size_t body_size, const burrow_attributes_st *attributes);
+typedef burrow_result_t (burrow_backend_command_fn)(void *backend, const burrow_command_st *command);
 
 #ifdef __cplusplus
 }

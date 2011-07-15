@@ -42,8 +42,9 @@ burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burro
       dest->next->prev = dest;
   }
   
-  dest->ttl = -1;
-  dest->hide = -1;
+  dest->set = BURROW_ATTRIBUTES_NONE;
+  dest->ttl = 0;
+  dest->hide = 0;
   
   return dest;
 }
@@ -60,6 +61,7 @@ burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const 
     return NULL;
   dest->ttl = src->ttl;
   dest->hide = src->hide;
+  dest->set = src->set;
   return dest;
 }
 
@@ -82,22 +84,35 @@ void burrow_attributes_free(burrow_attributes_st *attributes)
   }
 }
 
-void burrow_attributes_set_ttl(burrow_attributes_st *attributes, int32_t ttl)
+void burrow_attributes_unset(burrow_attributes_st *attributes, burrow_attributes_set_t set)
+{
+  attributes->set = set;
+}
+
+bool burrow_attributes_check(burrow_attributes_st *attributes, burrow_attributes_set_t set)
+{
+  return (attributes->set & set); /* if ANY are set, not if ALL are set */
+}
+
+
+void burrow_attributes_set_ttl(burrow_attributes_st *attributes, uint32_t ttl)
 {
   attributes->ttl = ttl;
+  attributes->set |= BURROW_ATTRIBUTES_TTL;
 }
 
-void burrow_attributes_set_hide(burrow_attributes_st *attributes, int32_t hide)
+void burrow_attributes_set_hide(burrow_attributes_st *attributes, uint32_t hide)
 {
   attributes->hide = hide;
+  attributes->set |= BURROW_ATTRIBUTES_HIDE;
 }
 
-int32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes)
+uint32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes)
 {
   return attributes->ttl;
 }
 
-int32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes)
+uint32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes)
 {
   return attributes->hide;
 }

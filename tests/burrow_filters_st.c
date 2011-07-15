@@ -25,13 +25,12 @@ int main(void)
   int32_t i;
   const char *cchar;
   burrow_detail_t detail;
-  burrow_tribool_t tribool;
   
-  (void)filters;
+  (void)filters; /* currently not used */
   
   burrow_test("burrow_filters_size");
-  if ((size = burrow_filters_size()) == 0)
-    burrow_test_error("returned 0 size");
+  if ((size = burrow_filters_size()) < 1)
+    burrow_test_error("returned size < 1");
   
   burrow_test("burrow_create");
   if ((burrow = burrow_create(NULL, "dummy")) == NULL)
@@ -43,60 +42,52 @@ int main(void)
   if ((filter = burrow_filters_create(NULL, burrow)) == NULL)
     burrow_test_error("returned NULL");
 
-
   /* Test default values */
-  burrow_test("burrow_filters_get_marker default");
-  if ((cchar = burrow_filters_get_marker(filter)) != NULL)
-    burrow_test_error("expected 0x0, got %p", cchar);
-
-  burrow_test("burrow_filters_get_wait default");
-  if ((i = burrow_filters_get_wait(filter)) != -1)
-    burrow_test_error("expected -1, got %d", i);
-
-  burrow_test("burrow_filters_get_limit");
-  if ((i = burrow_filters_get_limit(filter)) != -1)
-    burrow_test_error("expected -1, got %d", i);
-
-  burrow_test("burrow_filters_get_match_hidden default");
-  if ((tribool = burrow_filters_get_match_hidden(filter)) != BURROW_MAYBE)
-    burrow_test_error("expected %d, got %d", (int)BURROW_MAYBE, (int)tribool);
-
-  burrow_test("burrow_filters_get_detail default");
-  if ((detail = burrow_filters_get_detail(filter)) != BURROW_DETAIL_UNSET)
-    burrow_test_error("expeted %d, got %d", (int)BURROW_DETAIL_UNSET, (int)detail);
-
-
+  burrow_test("burrow_filters_check");
+  if (burrow_filters_check(filter, BURROW_FILTERS_ALL) != BURROW_FILTERS_NONE)
+    burrow_test_error("badly initialized, some filters set")
+  
   /* Test get/sets */
   burrow_test("burrow_filters marker set get");
   burrow_filters_set_marker(filter, MARKER);
+  if (burrow_filters_check(filter, BURROW_FILTERS_MARKER) == 0)
+    burrow_test_error("check failed");
   if (strcmp( (cchar = burrow_filters_get_marker(filter)), MARKER) != 0)
     burrow_test_error("expected '%s', got '%s'", MARKER, cchar);
 
   burrow_test("burrow_filters wait set get");
   burrow_filters_set_wait(filter, 100);
+  if (burrow_filters_check(filter, BURROW_FILTERS_WAIT) == 0)
+    burrow_test_error("check failed");
   if ((i = burrow_filters_get_wait(filter)) != 100)
     burrow_test_error("expected 100, got %d", i);
 
   burrow_test("burrow_filters limit set get");
   burrow_filters_set_limit(filter, 220);
+  if (burrow_filters_check(filter, BURROW_FILTERS_LIMIT) == 0)
+    burrow_test_error("check failed");
   if ((i = burrow_filters_get_limit(filter)) != 220)
     burrow_test_error("expected 220, got %d", i);
 
   burrow_test("burrow_filters match_hidden set get");
-  burrow_filters_set_match_hidden(filter, BURROW_TRUE);
-  if ((tribool = burrow_filters_get_match_hidden(filter)) != BURROW_TRUE)
-    burrow_test_error("expected %d, got %d", (int)BURROW_TRUE, (int)tribool);
+  burrow_filters_set_match_hidden(filter, true);
+  if (burrow_filters_check(filter, BURROW_FILTERS_MATCH_HIDDEN) == 0)
+    burrow_test_error("check failed");
+  if (burrow_filters_get_match_hidden(filter) != true)
+    burrow_test_error("expected true, got false");
 
   burrow_test("burrow_filters detail set get");
   burrow_filters_set_detail(filter, BURROW_DETAIL_ATTRIBUTES);
+  if (burrow_filters_check(filter, BURROW_FILTERS_DETAIL) == 0)
+    burrow_test_error("check failed");
   if ((detail = burrow_filters_get_detail(filter)) != BURROW_DETAIL_ATTRIBUTES)
     burrow_test_error("expeted %d, got %d", (int)BURROW_DETAIL_ATTRIBUTES, (int)detail);
 
   burrow_test("burrow_filters_free");
   burrow_filters_free(filter);
   
-  burrow_test("burrow_free");
-  burrow_free(burrow);
+  burrow_test("burrow_destroy");
+  burrow_destroy(burrow);
 
 #if 0 
   burrow_test("burrow_filters_clone")
@@ -128,8 +119,8 @@ int main(void)
   burrow_filters_free(attr3); /* middle */
   burrow_filters_free(attr5); /* end */
   
-  burrow_test("burrow_free managed");
-  burrow_free(burrow);
+  burrow_test("burrow_destroy managed");
+  burrow_destroy(burrow);
   
   /* Test non-managed attributes */
   
@@ -144,7 +135,7 @@ int main(void)
       burrow_test_error("returned NULL")
   }
   
-  burrow_free(burrow);
+  burrow_destroy(burrow);
   free(attr);
 #endif
 }

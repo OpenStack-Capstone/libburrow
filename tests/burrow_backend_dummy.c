@@ -19,23 +19,29 @@
 typedef enum {
   EXPECT_NONE = 0,
   
-  CALL_QUEUES       = (1 << 0),
-  MATCH_QUEUES_ONLY = (1 << 1),
-  MATCH_QUEUES      = CALL_QUEUES | MATCH_QUEUES_ONLY,
+  CALL_QUEUE        = (1 << 0),
+  MATCH_QUEUE_ONLY  = (1 << 1),
+  MULT_QUEUE_ONLY   = (1 << 2),
+  MATCH_QUEUE       = CALL_QUEUE | MATCH_QUEUE_ONLY,
+  MULT_QUEUE        = CALL_QUEUE | MULT_QUEUE_ONLY,
 
-  NO_CALL_QUEUES    = CALL_QUEUES,
-  NO_MATCH_QUEUES   = MATCH_QUEUES_ONLY,
+  NO_CALL_QUEUE     = CALL_QUEUE,
+  NO_MATCH_QUEUE    = MATCH_QUEUE_ONLY,
+  NO_MULT_QUEUE     = MULT_QUEUE_ONLY,
                 
-  CALL_ACCTS        = (1 << 2),
-  MATCH_ACCTS_ONLY  = (1 << 3),
-  MATCH_ACCTS       = CALL_ACCTS | MATCH_ACCTS_ONLY,
+  CALL_ACCT         = (1 << 3),
+  MATCH_ACCT_ONLY   = (1 << 4),
+  MULT_ACCT_ONLY    = (1 << 5),
+  MATCH_ACCT        = CALL_ACCT | MATCH_ACCT_ONLY,
+  MULT_ACCT         = CALL_ACCT | MULT_ACCT_ONLY,
 
-  NO_CALL_ACCTS     = CALL_ACCTS,
-  NO_MATCH_ACCTS    = MATCH_ACCTS_ONLY,
+  NO_CALL_ACCT      = CALL_ACCT,
+  NO_MATCH_ACCT     = MATCH_ACCT_ONLY,
+  NO_MULT_ACCT      = MULT_ACCT_ONLY,
                     
-  CALL_MSG          = (1 << 4),
-  MATCH_MSG_ONLY    = (1 << 5),
-  MULT_MSG_ONLY     = (1 << 6),
+  CALL_MSG          = (1 << 6),
+  MATCH_MSG_ONLY    = (1 << 7),
+  MULT_MSG_ONLY     = (1 << 8),
   MATCH_MSG         = CALL_MSG | MATCH_MSG_ONLY,
   MULT_MSG          = CALL_MSG | MULT_MSG_ONLY,
 
@@ -43,7 +49,7 @@ typedef enum {
   NO_MATCH_MSG      = MATCH_MSG_ONLY,
   NO_MULT_MSG       = MULT_MSG_ONLY,
                     
-  LOG_ERROR         = (1 << 7),
+  LOG_ERROR         = (1 << 9),
   NO_LOG_ERROR      = LOG_ERROR,
 
   EXPECT_ALL        = ~EXPECT_NONE
@@ -51,8 +57,8 @@ typedef enum {
 
 struct client_st {
   int message_callback_called;
-  int queues_callback_called;
-  int accounts_callback_called;
+  int queue_callback_called;
+  int account_callback_called;
   int complete_callback_called;
   int custom_malloc_called;
   int custom_free_called;
@@ -64,7 +70,7 @@ struct client_st {
   const char *queue;
   const char *msgid;
   size_t body_size;
-  const uint8_t *body;
+  void *body;
 };
  
 typedef struct client_st client_st;
@@ -77,12 +83,12 @@ static void log_callback(burrow_st *burrow, burrow_verbose_t verbose, const char
   printf("log_callback: %s\n", msg);
 }
 
-static void message_callback(burrow_st *burrow, const char *message_id, const uint8_t *body, ssize_t body_size, const burrow_attributes_st *attributes)
+static void message_callback(burrow_st *burrow, const char *message_id, const void *body, size_t body_size, const burrow_attributes_st *attributes)
 {
   client_st *client = burrow_get_context(burrow);
   client->message_callback_called++;
   
-  printf("message_callback called(%d): id: %s, body: %s, body_size: %d, ttl %d, hide %d\n",
+  printf("message_callback called(%d): id: %s, body: %s, body_size: %u, ttl %d, hide %d\n",
          client->message_callback_called, message_id, (body ? (const char *)body : ""), body_size,
          burrow_attributes_get_ttl(attributes), burrow_attributes_get_hide(attributes));
 
@@ -92,54 +98,44 @@ static void message_callback(burrow_st *burrow, const char *message_id, const ui
     client->result |= CALL_MSG;
   
   if (!strcmp(message_id, client->msgid) &&
-      (!body || (body_size == (ssize_t)client->body_size && !memcmp(body, client->body, (size_t)body_size) )) )
+      (!body || (body_size == client->body_size && !memcmp(body, client->body, body_size) )) )
     client->result |= MATCH_MSG_ONLY;
 }
 
-static void queues_callback(burrow_st *burrow, char **queues, size_t size)
+static void queue_callback(burrow_st *burrow, const char *queue)
 {
   client_st *client = burrow_get_context(burrow);
-  int i;
 
-  client->queues_callback_called++;
+  client->queue_callback_called++;
 
-  i = (int)size;
-  printf("queues callback called(%d): size %d, queues: ", client->queues_callback_called, size);
-  while (i--)
-    printf(" %s", queues[i]);
-  printf("\n");
+  if (client->result & CALL_QUEUE)
+    client->result |= MULT_QUEUE_ONLY;
+  else
+    client->result |= CALL_QUEUE;
 
-  client->result |= CALL_QUEUES;
+  printf("queues callback called(%d): queue: %s\n", client->queue_callback_called, queue);
 
-  i = (int)size;
-  while (i--)
-    if (!strcmp(client->queue, queues[i])) {
-      client->result |= MATCH_QUEUES_ONLY;
-      break;
-    }
+  if (!strcmp(client->queue, queue)) {
+    client->result |= MATCH_QUEUE_ONLY;
+  }
 }
 
-static void accounts_callback(burrow_st *burrow, char **accounts, size_t size)
+static void account_callback(burrow_st *burrow, const char *account)
 {
   client_st *client = burrow_get_context(burrow);
-  int i;
 
-  client->accounts_callback_called++;
+  client->account_callback_called++;
 
-  i = (int)size;
-  printf("accounts callback called(%d): size %d, accounts: ", client->accounts_callback_called, size);
-  while (i--)
-    printf(" %s", accounts[i]);
-  printf("\n");
+  if (client->result & CALL_ACCT)
+    client->result |= MULT_ACCT_ONLY;
+  else
+    client->result |= CALL_ACCT;
 
-  client->result |= CALL_ACCTS;
+  printf("account callback called(%d): account: %s\n", client->account_callback_called, account);
 
-  i = (int)size;
-  while (i--)
-    if (!strcmp(client->acct, accounts[i])) {
-      client->result |= MATCH_ACCTS_ONLY;
-      break;
-    }
+  if (!strcmp(client->acct, account)) {
+    client->result |= MATCH_ACCT_ONLY;
+  }
 }
 
 static void complete_feedback(burrow_st *burrow)
@@ -187,6 +183,11 @@ static void client_may(client_st *client, expectation_t may_only)
   client_expect(client, 0, EXPECT_ALL ^ may_only);
 }
 
+static void client_should_may(client_st *client, expectation_t should, expectation_t may)
+{
+  client_expect(client, should, EXPECT_ALL ^ (should | may) );
+}
+
 static bool client_passed(client_st *client)
 {
   return ((client->result & client->must) == client->must) && ((client->result & client->must_not) == 0);
@@ -199,10 +200,12 @@ static void print_expectation(expectation_t e)
     expectation_t e;
     const char *s;
   } descriptions[] = {
-    {CALL_QUEUES, "CALL_QUEUES"},
-    {MATCH_QUEUES, "MATCH_QUEUES"},
-    {CALL_ACCTS, "CALL_ACCTS"},
-    {MATCH_ACCTS, "MATCH_ACCTS"},
+    {CALL_QUEUE, "CALL_QUEUE"},
+    {MATCH_QUEUE, "MATCH_QUEUE"},
+    {MULT_QUEUE, "MULT_QUEUE"},
+    {CALL_ACCT, "CALL_ACCT"},
+    {MATCH_ACCT, "MATCH_ACCT"},
+    {MULT_ACCT, "MULT_ACCT"},
     {CALL_MSG, "CALL_MSG"},
     {MATCH_MSG, "MATCH_MSG"},
     {MULT_MSG, "MULT_MSG"},
@@ -274,8 +277,8 @@ int main(void)
     burrow_set_free_fn(burrow, &custom_free);
 
     burrow_set_message_fn(burrow, &message_callback);
-    burrow_set_queues_fn(burrow, &queues_callback);
-    burrow_set_accounts_fn(burrow, &accounts_callback);
+    burrow_set_queue_fn(burrow, &queue_callback);
+    burrow_set_account_fn(burrow, &account_callback);
     burrow_set_complete_fn(burrow, &complete_feedback);
     burrow_set_log_fn(burrow, &log_callback);
 
@@ -296,25 +299,25 @@ int main(void)
 
   burrow_test("burrow_get_accounts");
 
-    client_only(client, MATCH_ACCTS);
+    client_should_may(client, MATCH_ACCT, MULT_ACCT);
     burrow_get_accounts(burrow, NULL);
     client_check(client);
   
   burrow_test("burrow_get_queues");
 
-    client_only(client, MATCH_QUEUES);
+    client_should_may(client, MATCH_QUEUE, MULT_QUEUE);
     burrow_get_queues(burrow, client->acct, NULL);
     client_check(client);
 
   burrow_test("burrow_get_messages");
 
-    client_only(client, MATCH_MSG);
+    client_should_may(client, MATCH_MSG, MULT_MSG);
     burrow_get_messages(burrow, client->acct, client->queue, NULL);
     client_check(client);
 
   burrow_test("burrow_get_message");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
     client_check(client);
 
@@ -324,7 +327,7 @@ int main(void)
 
   burrow_test("burrow_update_message hide = 10");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_update_message(burrow, client->acct, client->queue, client->msgid, attr, NULL);
     client_check(client);
 
@@ -347,13 +350,13 @@ int main(void)
 
   burrow_test("burrow_get_message hidden");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
     client_check(client);
 
   burrow_test("burrow_update_message hidden hide=0 ttl=100");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_update_message(burrow, client->acct, client->queue, client->msgid, attr, NULL);
     client_check(client);
 
@@ -373,13 +376,13 @@ int main(void)
 
   burrow_test("burrow_get_accounts");
 
-    client_may(client, CALL_ACCTS);
+    client_may(client, MULT_ACCT);
     burrow_get_accounts(burrow, NULL);
     client_check(client);
 
   burrow_test("burrow_get_queues");
 
-    client_may(client, CALL_QUEUES);
+    client_may(client, MULT_QUEUE);
     burrow_get_queues(burrow, client->acct, NULL);
     client_check(client);
 
@@ -405,7 +408,7 @@ int main(void)
 
   burrow_test("burrow_get_message");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
     client_check(client);
 
@@ -429,13 +432,13 @@ int main(void)
 
   burrow_test("burrow_get_queues");
 
-    client_may(client, CALL_QUEUES);
+    client_may(client, MULT_QUEUE);
     burrow_get_queues(burrow, client->acct, NULL);
     client_check(client);
 
   burrow_test("burrow_get_accounts");
 
-    client_may(client, CALL_ACCTS);
+    client_may(client, MULT_ACCT);
     burrow_get_accounts(burrow, NULL);
     client_check(client);
 
@@ -450,7 +453,7 @@ int main(void)
 
   burrow_test("burrow_get_message");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
     client_check(client);
 
@@ -480,7 +483,7 @@ int main(void)
 
   burrow_test("burrow_get_accounts");
 
-    client_may(client, CALL_ACCTS);
+    client_may(client, MULT_ACCT);
     burrow_get_accounts(burrow, NULL);
     client_check(client);
 
@@ -494,7 +497,7 @@ int main(void)
 
   burrow_test("burrow_get_message");
 
-    client_expect(client, MATCH_MSG, NO_MULT_MSG);
+    client_only(client, MATCH_MSG);
     burrow_get_message(burrow, client->acct, client->queue, client->msgid, NULL);
     client_check(client);
 
@@ -530,8 +533,8 @@ int main(void)
 
   burrow_remove_options(burrow, BURROW_OPT_AUTOPROCESS);
 
-  burrow_test("burrow_free dummy");
-  burrow_free(burrow);
+  burrow_test("burrow_destroy dummy");
+  burrow_destroy(burrow);
 
   free(client);
 }

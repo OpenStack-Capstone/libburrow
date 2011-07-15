@@ -18,7 +18,7 @@
 const char *ACCT = "my_acct";
 const char *QUEUE = "my_queue";
 const char *MSGID = "my_msg";
-const uint8_t *BODY = (const uint8_t *)"body";
+const void *BODY = (void *)"body";
 const size_t BODY_SIZE = 5;
 
 int main(void)
@@ -27,13 +27,15 @@ int main(void)
   burrow_attributes_st *attr;
   ssize_t size;
   
+  (void)size;
+  
   burrow_test("burrow_size nonsense");
-  if ((size = burrow_size("nonsense")) != -1)
-    burrow_test_error("returned non -1 size");
+  if (burrow_size("nonsense") > 0)
+    burrow_test_error("returned size > 0");
 
   burrow_test("burrow_size NULL");
-  if ((size = burrow_size(NULL)) != -1)
-    burrow_test_error("returned non -1 size");
+  if (burrow_size(NULL) > 0)
+    burrow_test_error("returned size > 0");
 
   burrow_test("burrow_create nonsense");
   if ((burrow = burrow_create(NULL, "nonsense")) != NULL)
@@ -117,8 +119,8 @@ int main(void)
 
   /* no bad commands to check for accounts */
 
-  burrow_test("burrow_free dummy");
-  burrow_free(burrow);
+  burrow_test("burrow_destroy dummy");
+  burrow_destroy(burrow);
   
   /* set options, get options */
   /* set callbacks, test callbacks */

@@ -35,33 +35,37 @@ BURROW_API
 void burrow_filters_free(burrow_filters_st *filters);
 
 BURROW_API
-void burrow_filters_set_match_hidden(burrow_filters_st *filters, burrow_tribool_t match_hidden);
+void burrow_filters_unset(burrow_filters_st *filters, burrow_filters_set_t set);
+
+BURROW_API
+bool burrow_filters_check(burrow_filters_st *filters, burrow_filters_set_t set);
+
+BURROW_API
+void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidden);
 
 BURROW_API
 void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id);
 
 BURROW_API
-void burrow_filters_set_limit(burrow_filters_st *filters, int32_t limit);
+void burrow_filters_set_limit(burrow_filters_st *filters, uint32_t limit);
 
 BURROW_API
-void burrow_filters_set_wait(burrow_filters_st *filters, int32_t wait_time);
+void burrow_filters_set_wait(burrow_filters_st *filters, uint32_t wait_time);
 
 BURROW_API
 void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detail);
 
-
-
 BURROW_API
-burrow_tribool_t burrow_filters_get_match_hidden(burrow_filters_st *filters);
+bool burrow_filters_get_match_hidden(burrow_filters_st *filters);
 
 BURROW_API
 const char *burrow_filters_get_marker(burrow_filters_st *filters);
 
 BURROW_API
-int32_t burrow_filters_get_limit(burrow_filters_st *filters);
+uint32_t burrow_filters_get_limit(burrow_filters_st *filters);
 
 BURROW_API
-int32_t burrow_filters_get_wait(burrow_filters_st *filters);
+uint32_t burrow_filters_get_wait(burrow_filters_st *filters);
 
 BURROW_API
 burrow_detail_t burrow_filters_get_detail(burrow_filters_st *filters);

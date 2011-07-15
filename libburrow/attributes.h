@@ -35,16 +35,22 @@ BURROW_API
 void burrow_attributes_free(burrow_attributes_st *attributes);
 
 BURROW_API
-void burrow_attributes_set_ttl(burrow_attributes_st *attributes, int32_t ttl);
+void burrow_attributes_unset(burrow_attributes_st *attributes, burrow_attributes_set_t set);
 
 BURROW_API
-void burrow_attributes_set_hide(burrow_attributes_st *attributes, int32_t hide);
+bool burrow_attributes_check(burrow_attributes_st *attributes, burrow_attributes_set_t set);
 
 BURROW_API
-int32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes);
+void burrow_attributes_set_ttl(burrow_attributes_st *attributes, uint32_t ttl);
 
 BURROW_API
-int32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes);
+void burrow_attributes_set_hide(burrow_attributes_st *attributes, uint32_t hide);
+
+BURROW_API
+uint32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes);
+
+BURROW_API
+uint32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes);
 
 #ifdef __cplusplus
 }
