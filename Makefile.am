@@ -9,7 +9,7 @@
 #
 
 ACLOCAL_AMFLAGS = -I m4
-LDADD = libburrow.la -lcurl
+LDADD = libburrow.la ${LTLIBCURL}
 
 #bin_PROGRAMS =
 lib_LTLIBRARIES =
