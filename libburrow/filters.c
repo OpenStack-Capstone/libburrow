@@ -29,7 +29,7 @@ burrow_filters_st *burrow_filters_create(burrow_filters_st *dest, burrow_st *bur
     dest->prev = dest;
     
   } else if (!dest) {
-    dest = burrow->malloc_fn(burrow, sizeof(burrow_filters_st));
+    dest = burrow_malloc(burrow, sizeof(burrow_filters_st));
     if (!dest)
       return NULL;
 
@@ -86,7 +86,7 @@ void burrow_filters_free(burrow_filters_st *filters)
         filters->burrow->filters_list = filters->next;
 
     }
-    filters->burrow->free_fn(filters->burrow, filters);
+    burrow_free(filters->burrow, filters);
   } else {
     free(filters);
   }

@@ -29,7 +29,7 @@ burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burro
     dest->prev = dest;
     
   } else if (!dest) {
-    dest = burrow->malloc_fn(burrow, sizeof(burrow_attributes_st));
+    dest = burrow_malloc(burrow, sizeof(burrow_attributes_st));
     if (!dest)
       return NULL;
 
@@ -78,7 +78,7 @@ void burrow_attributes_free(burrow_attributes_st *attributes)
         attributes->burrow->attributes_list = attributes->next;
 
     }
-    attributes->burrow->free_fn(attributes->burrow, attributes);
+    burrow_free(attributes->burrow, attributes);
   } else {
     free(attributes);
   }
