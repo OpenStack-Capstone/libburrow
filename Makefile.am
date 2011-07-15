@@ -11,11 +11,11 @@
 ACLOCAL_AMFLAGS = -I m4
 LDADD = libburrow.la ${LTLIBCURL}
 
-#bin_PROGRAMS =
+bin_PROGRAMS =
 lib_LTLIBRARIES =
-#noinst_LTLIBRARIES =
+noinst_LTLIBRARIES =
 nobase_include_HEADERS =
-#pkgplugin_LTLIBRARIES =
+pkgplugin_LTLIBRARIES =
 CLEANFILES =
 
 DISTCLEANFILES = \
@@ -54,20 +54,20 @@ libburrow_la_SOURCES = \
 nobase_include_HEADERS += \
 	libburrow/burrow.h \
 	libburrow/constants.h \
-	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h \
-	libburrow/backends/http/curl_backend.h \
-	libburrow/backends/dummy/dummy.h \
 	libburrow/structs.h \
 	libburrow/backends.h \
-	libburrow/internal.h \
 	libburrow/attributes.h \
-	libburrow/macros.h \
 	libburrow/filters.h \
 	libburrow/visibility.h
 
 noinst_HEADERS = \
 	libburrow/common.h \
-	libburrow/structs-local.h
+	libburrow/structs-local.h \
+	libburrow/internal.h \
+	libburrow/macros.h \
+	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h \
+	libburrow/backends/http/curl_backend.h \
+	libburrow/backends/dummy/dummy.h \
 	tests/common.h
 
 libburrow_la_CFLAGS = \
