@@ -9,6 +9,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "user_buffer.h"
+
 #ifdef DMALLOC
 #include "dmalloc.h"
 #endif
@@ -135,8 +137,6 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
   return (void *)backend;
 }
 
-static void destroy_user_buffer(struct user_buffer_st *buffer);
-
 static void
 burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
@@ -151,7 +151,7 @@ burrow_backend_http_destroy(void * ptr) {
   if (backend->proto_version)
     free(backend->proto_version);
   if (backend->buffer)
-    destroy_user_buffer(backend->buffer);
+    user_buffer_destroy(backend->buffer);
   if (backend->chandle) 
     curl_easy_cleanup(backend->chandle);
 
@@ -203,88 +203,6 @@ burrow_backend_http_set_option(void *ptr,
     }
   return BURROW_OK;
 }
-
-struct user_buffer_st {
-  size_t size;
-  size_t where;
-  char *buf;
-};
-
-typedef struct user_buffer_st user_buffer;
-
-static user_buffer *
-create_user_buffer(user_buffer *buffer, const uint8_t *data) {
-  if (buffer == 0) {
-    buffer = (user_buffer *)malloc(sizeof(user_buffer));
-  }
-  buffer->where = 0;
-  if (data == 0) {
-    buffer->buf = 0;
-    buffer->size = 0;
-  } else {
-    buffer->buf = strdup((const char *)data);
-    buffer->size = strlen((const char *)data);
-  }
-  return buffer;
-}
-
-static void
-destroy_user_buffer(user_buffer *buffer) {
-  if (buffer->buf != 0)
-    free(buffer->buf);
-  free(buffer);
-}
-
-/**
- * when libcurl receives data it will call this function to write
- * it somewhere (a buffer).
- */
-static size_t
-write_function(char *data, size_t size, size_t nmemb, void *userdata)
-{
-  user_buffer *userd = (user_buffer *)userdata;
-  size_t len = size * nmemb;
-  if (userd->size != 0) {
-    if (userd->buf != 0) {
-      userd->buf = (char *)realloc(userd->buf, userd->size + len);
-      userd->size += len;
-    }
-  } else {
-    userd->size = len;
-    userd->buf = malloc(len);
-    userd->where = 0;
-  }
-  memcpy(userd->buf + userd->where, data, len);
-  userd->where += len;
-  return len;
-}
-
-/**
- * when libcurl needs to read some data to send, it will call this function
- * to read the data.
- */
-static size_t
-read_function(char *data, size_t size, size_t nmemb, void *userdata)
-{
-  user_buffer *userd = (user_buffer *)userdata;
-  size_t len = size * nmemb;
-
-  size_t how_much_left = userd->size - userd->where;
-  if (how_much_left == 0)
-    return 0;
-
-  if (how_much_left <= len){
-    memcpy(data, userd->buf + userd->where, how_much_left);
-    userd->where += how_much_left;
-    return how_much_left;
-  } else {
-    memcpy(data, userd->buf + userd->where, len);
-    userd->where += len;
-    return len;
-  }
-}
-
-
 
 struct json_processing_st {
   burrow_backend_t* backend;
@@ -489,8 +407,8 @@ burrow_backend_http_create_message(void *ptr,
 printf("create_message url = \"%s\"\n", url);
   curl_easy_setopt(chandle, CURLOPT_URL, url);
 
-  user_buffer *buffer = create_user_buffer(0, body);
-  curl_easy_setopt(chandle, CURLOPT_READFUNCTION, read_function);
+  user_buffer *buffer = user_buffer_create(0, body);
+  curl_easy_setopt(chandle, CURLOPT_READFUNCTION, user_buffer_curl_read_function);
   curl_easy_setopt(chandle, CURLOPT_READDATA, buffer);
 
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 1);
@@ -505,7 +423,7 @@ printf("create_message url = \"%s\"\n", url);
   }
   backend->chandle = chandle;
   if(backend->buffer) {
-    destroy_user_buffer(backend->buffer);
+    user_buffer_destroy(backend->buffer);
   }
   backend->buffer = buffer;
   curl_multi_add_handle(backend->curlptr, chandle);
@@ -559,6 +477,8 @@ burrow_backend_http_process(void *ptr) {
 
        As another example, the DELETE command will normally get nothing,
        but if you use the detail attribute, it will get complete messages.
+       On the other hand, should be able to parse that as json, or ignore
+       it because empty...
     */
 
     burrow_command_t command = backend->burrow->cmd.command;
@@ -568,8 +488,8 @@ burrow_backend_http_process(void *ptr) {
 	(command == BURROW_CMD_DELETE_MESSAGES))
       {
 	burrow_backend_http_parse_json(backend,
-				       backend->buffer->buf,
-				       backend->buffer->size);
+				       user_buffer_get_text(backend->buffer),
+				       user_buffer_get_size(backend->buffer));
       }
     
     return BURROW_OK;
@@ -715,8 +635,8 @@ burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
   curl_easy_setopt(chandle, CURLOPT_URL, url);
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0);
 
-  user_buffer *buffer = create_user_buffer(0,0);
-  curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION, write_function);
+  user_buffer *buffer = user_buffer_create(0,0);
+  curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION, user_buffer_curl_write_function);
   curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
 
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 0);
@@ -728,7 +648,7 @@ burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
   }
   backend->chandle = chandle;
   if (backend->buffer != 0)
-    destroy_user_buffer(backend->buffer);
+    user_buffer_destroy(backend->buffer);
   backend->buffer = buffer;
 
   return burrow_backend_http_process(backend);
