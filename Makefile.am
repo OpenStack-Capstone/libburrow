@@ -18,6 +18,8 @@ nobase_include_HEADERS =
 #pkgplugin_LTLIBRARIES =
 CLEANFILES =
 
+DISTCLEANFILES = \
+  config/top.h
 
 noinst_PROGRAMS = \
   examples/complete_loop
@@ -51,11 +53,21 @@ libburrow_la_SOURCES = \
 
 nobase_include_HEADERS += \
 	libburrow/burrow.h \
-	libburrow/visibility.h \
-	libburrow/attributes.h
+	libburrow/constants.h \
+	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h \
+	libburrow/backends/http/curl_backend.h \
+	libburrow/backends/dummy/dummy.h \
+	libburrow/structs.h \
+	libburrow/backends.h \
+	libburrow/internal.h \
+	libburrow/attributes.h \
+	libburrow/macros.h \
+	libburrow/filters.h \
+	libburrow/visibility.h
 
 noinst_HEADERS = \
 	libburrow/common.h \
+	libburrow/structs-local.h
 	tests/common.h
 
 libburrow_la_CFLAGS = \
@@ -76,6 +88,9 @@ check_PROGRAMS = \
 	tests/burrow_st \
 	tests/burrow_backend_dummy \
 	tests/burrow_attributes_st
+
+check_HEADERS = \
+	tests/common.h
 
 TESTS = $(check_PROGRAMS)
 
