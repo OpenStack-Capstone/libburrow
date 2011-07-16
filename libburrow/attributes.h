@@ -38,7 +38,7 @@ BURROW_API
 void burrow_attributes_unset(burrow_attributes_st *attributes, burrow_attributes_set_t set);
 
 BURROW_API
-bool burrow_attributes_check(burrow_attributes_st *attributes, burrow_attributes_set_t set);
+bool burrow_attributes_check(const burrow_attributes_st *attributes, burrow_attributes_set_t set);
 
 BURROW_API
 void burrow_attributes_set_ttl(burrow_attributes_st *attributes, uint32_t ttl);

@@ -67,6 +67,11 @@ static void _message(burrow_st * burrow,
   (void) body_size;
   (void) attributes;
   fprintf(stderr, "_message: called, msgid: '%s', body size %d, body = \"%s\"\n", message_id, body_size, (char *)body);
+  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
+    fprintf(stderr, "\tttl = %d\n", burrow_attributes_get_ttl(attributes));
+  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE))
+    fprintf(stderr, "\thide = %d\n", burrow_attributes_get_hide(attributes));
+	  
 }
 
 int main(int argc, char **argv)

@@ -211,9 +211,6 @@ struct json_processing_st {
   burrow_backend_t* backend;
   char *body;
   size_t body_size;
-  char **attr;
-  char **value;
-  int attr_count;
   char *message_id;
   int is_key;
   char *key;
@@ -230,13 +227,23 @@ static json_processing_t* burrow_easy_json_st_create(burrow_backend_t* backend)
   jproc->body = 0;
   jproc->body_size = 0;
   jproc->message_id = 0;
-  jproc->attr_count = 0;
-  jproc->attr = 0;
-  jproc->value = 0;
   jproc->is_key = 0;
   jproc->key = 0;
-  jproc->attributes = 0;
+  jproc->attributes = burrow_attributes_create(0, 0);
   return jproc;
+}
+
+static void
+burrow_easy_json_st_destroy(json_processing_t *jproc) {
+  if (jproc->body)
+    free(jproc->body);
+  if (jproc->message_id)
+    free(jproc->message_id);
+  if (jproc->key)
+    free(jproc->key);
+  if (jproc->attributes)
+    free(jproc->attributes);
+  free(jproc);
 }
 
 /*
@@ -264,8 +271,11 @@ static int burrow_backend_http_json_callback(void *ctx,
     {
       switch(type) {
       case JSON_T_ARRAY_BEGIN:
-      case JSON_T_OBJECT_BEGIN:
       case JSON_T_ARRAY_END:
+	break;
+      case JSON_T_OBJECT_BEGIN:
+	// make sure we have attributes, and they are unset
+	jproc->attributes = burrow_attributes_create(jproc->attributes, 0);
 	break;
       case JSON_T_OBJECT_END:
 	printf("Ok, got the end of an object\n");
@@ -309,8 +319,14 @@ static int burrow_backend_http_json_callback(void *ctx,
 	if(jproc->is_key) {
 	  jproc->is_key = 0;
 	  if (strcmp(jproc->key, "hide") == 0) {
-	    fprintf(stderr, "WARNING, not processing hide attribute\n");
-	  }
+	    burrow_attributes_set_hide(jproc->attributes,
+				       (uint32_t)value->vu.integer_value);
+	  } else if (strcmp(jproc->key, "ttl") == 0) {
+	    burrow_attributes_set_ttl(jproc->attributes,
+				      (uint32_t)value->vu.integer_value);
+	  } else
+	    fprintf(stderr, "WARNING! unrecognized integer key \"%s\"=%d\n",
+		    jproc->key, value->vu.integer_value);
 	}
 	break;
       default:
@@ -375,8 +391,10 @@ static int burrow_backend_http_parse_json(burrow_backend_t *backend,
   fprintf(stderr, "Ok, parsed through the entire JSON message\n");
   if (!JSON_parser_done(jc)) {
     fprintf(stderr, "JSON_parser_end: syntax error\n");
+    burrow_easy_json_st_destroy(json_processing);
     return -1;
   }
+  burrow_easy_json_st_destroy(json_processing);
   return 0;
 }
 
