@@ -25,6 +25,8 @@ lcov/
 .deps/
 .dirstamp
 .libs/
+*~
+core
 
 # OS X
 .DS_Store?
