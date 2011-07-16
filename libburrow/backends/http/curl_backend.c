@@ -64,6 +64,9 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
 static char *
 burrow_backend_http_filters_to_string(const burrow_filters_st *filters) {
   char buf[1024] = "";
+  if (filters== 0)
+    return 0;
+
   if (filters->set & BURROW_FILTERS_MATCH_HIDDEN){
     if (filters->match_hidden == true)
       sprintf(buf, "match_hidden=true");
@@ -297,6 +300,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 	    jproc->message_id = strdup(value->vu.str.value);
 	  } else if (strcmp(jproc->key, "body") == 0) {
 	    jproc->body = strdup(value->vu.str.value);
+	    jproc->body_size = strlen(value->vu.str.value);
 	  } else
 	    fprintf(stderr, "WARNING!  unrecognized key \"%s\"\n", jproc->key);
 	}
@@ -415,18 +419,20 @@ printf("create_message url = \"%s\"\n", url);
   curl_easy_setopt(chandle, CURLOPT_INFILESIZE, body_size);
 
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
-  curl_easy_setopt(chandle, CURLOPT_HEADER, 1);
+  curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
   if (backend->chandle) {
     curl_multi_remove_handle(backend->curlptr, backend->chandle);
     curl_easy_cleanup(backend->chandle);
   }
   backend->chandle = chandle;
+  curl_multi_add_handle(backend->curlptr, chandle);
+
   if(backend->buffer) {
     user_buffer_destroy(backend->buffer);
   }
   backend->buffer = buffer;
-  curl_multi_add_handle(backend->curlptr, chandle);
+
   return burrow_backend_http_process((void*)backend);
 }
   
@@ -631,6 +637,7 @@ burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
     snprintf(url, urllen, "?%s", filter_str);
     free(filter_str);
   }
+  fprintf(stderr, "URL to send is \"%s\"\n", url);
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0);
@@ -639,14 +646,18 @@ burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
   curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION, user_buffer_curl_write_function);
   curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
 
-  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 0);
+  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
+  // Toss old curl handle, if present
   if (backend->chandle) {
     curl_multi_remove_handle(backend->curlptr, backend->chandle);
     curl_easy_cleanup(backend->chandle);
   }
   backend->chandle = chandle;
+  curl_multi_add_handle(backend->curlptr, chandle);
+
+  // Toss old buffer, if present
   if (backend->buffer != 0)
     user_buffer_destroy(backend->buffer);
   backend->buffer = buffer;

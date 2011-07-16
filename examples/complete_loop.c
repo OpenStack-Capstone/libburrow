@@ -28,6 +28,11 @@ static void _complete(burrow_st *burrow)
 {
   client_st *client = burrow_get_context(burrow);
 
+  if (client->current_message == NULL) {
+    printf("Done whatever we were doing\n");
+    return;
+  }
+
   printf("done: %s/%s/%s: %s\n", client->account, client->queue, client->current_message->msg_id, client->current_message->body);
 
   client->current_message = client->current_message->next;
@@ -48,6 +53,20 @@ static void _log(burrow_st *burrow, burrow_verbose_t verbose, const char *messag
     printf("Error: %s", message);
     client->return_code = 1;
   }
+}
+
+static void _message(burrow_st * burrow,
+	      const char *message_id,
+	      const void *body,
+	      size_t body_size,
+	      const burrow_attributes_st *attributes)
+{
+  (void) burrow;
+  (void) message_id;
+  (void) body;
+  (void) body_size;
+  (void) attributes;
+  fprintf(stderr, "_message: called, msgid: '%s', body size %d, body = \"%s\"\n", message_id, body_size, (char *)body);
 }
 
 int main(int argc, char **argv)
@@ -109,6 +128,7 @@ int main(int argc, char **argv)
   burrow_set_context(burrow, &client);
   burrow_set_complete_fn(burrow, &_complete);
   burrow_set_log_fn(burrow, &_log);
+  burrow_set_message_fn(burrow, &_message);
 
   /* Insert the first one here to kick the loop off. This only sets start state,
      it doesn't run the loop. */
@@ -118,6 +138,14 @@ int main(int argc, char **argv)
 
   /* This runs until there are no more tasks. */
   burrow_process(burrow);
+
+  /* Now see what the server has */
+  burrow_get_messages(burrow, client.account, client.queue, NULL);
+  burrow_result_t result;
+  do {
+    result = burrow_process(burrow);
+  } while (result != BURROW_OK);
+
   burrow_destroy(burrow);
 
   return client.return_code;
