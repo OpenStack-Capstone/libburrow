@@ -45,12 +45,13 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
   char buf[1024] = "";
   if (attributes == 0)
     return 0;
-  if (attributes->set & BURROW_ATTRIBUTES_TTL)
-    sprintf(buf, "ttl=%ld:", attributes->ttl);
-  if (attributes->set & BURROW_ATTRIBUTES_HIDE) {
+  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
+    sprintf(buf, "ttl=%ld:", burrow_attributes_get_ttl(attributes));
+  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE)) {
     if (strlen(buf) > 0)
       sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "hide=%ld", attributes->hide);
+    sprintf(buf + strlen(buf), "hide=%ld",
+	    burrow_attributes_get_hide(attributes));
   }
   if (strlen(buf) == 0)
     return 0;
