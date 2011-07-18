@@ -78,6 +78,11 @@ static void _message(burrow_st * burrow,
   }
 }
 
+static void _account(burrow_st *burrow, const char *account) {
+  (void) burrow;
+  fprintf(stderr, "_account() called, got account = \"%s\"\n", account);
+}
+
 int main(int argc, char **argv)
 {
   burrow_st *burrow;
@@ -219,6 +224,11 @@ int main(int argc, char **argv)
 
   printf("Get all messages, one should be missing\n");
   burrow_get_messages(burrow, client.account, client.queue, NULL);
+  burrow_process(burrow);
+
+  printf("Get list of accounts\n");
+  burrow_set_account_fn(burrow, &_account);
+  burrow_get_accounts(burrow, NULL);
   burrow_process(burrow);
 
   printf("finishing up\n");

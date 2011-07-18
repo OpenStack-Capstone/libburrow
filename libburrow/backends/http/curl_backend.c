@@ -647,29 +647,92 @@ burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
   return burrow_backend_http_get_lists(ptr, cmd);
 }
 
+/**
+ * for deleting queues or accounts
+ */
+static burrow_result_t
+burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
+{
+  burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  const char *account = cmd->account;
+  const char *queue = cmd->queue;
+  const burrow_filters_st *filters = cmd->filters;
+  burrow_st *burrow = backend->burrow;
+  burrow_command_t command = burrow->cmd.command;
+  size_t urllen = 0;
+  char *filter_str = 0;
+
+  backend->get_body_only = false;
+  CURL *chandle;
+  chandle = curl_easy_init();
+
+  filter_str = burrow_backend_http_filters_to_string(filters);
+  urllen = strlen(backend->baseurl) +
+    strlen(backend->proto_version) +
+    (account ? 0 : strlen(account)) +
+    strlen(queue) +
+    (filter_str == 0? 0 : strlen(filter_str)) +
+    128;
+
+  char *url = malloc(urllen);
+  size_t len_so_far = 0;
+
+  snprintf(url, urllen, "%s/%s",
+	   backend->baseurl,
+	   backend->proto_version
+	   );
+
+  if (command == BURROW_CMD_DELETE_QUEUES) {
+    len_so_far = strlen(url);
+    snprintf(url+len_so_far, urllen-len_so_far, "/%s", account);
+  }
+  if (filter_str != 0) {
+    len_so_far = strlen(url);
+    snprintf(url+len_so_far, urllen-len_so_far, "?%s", filter_str);
+  }
+
+  curl_easy_setopt(chandle, CURLOPT_URL, url);
+  curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
+  curl_easy_setopt(chandle, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+  user_buffer *buffer = user_buffer_create(0,0);
+  curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION,
+		   user_buffer_curl_write_function);
+  curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
+
+  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
+  curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
+  // Toss old curl handle, if present and different
+  if (backend->chandle) {
+    if (backend->chandle != chandle) {
+      curl_multi_remove_handle(backend->curlptr, backend->chandle);
+      curl_easy_cleanup(backend->chandle);
+      backend->chandle=chandle;
+      curl_multi_add_handle(backend->curlptr, chandle);
+    }
+  } else {
+    backend->chandle = chandle;
+    curl_multi_add_handle(backend->curlptr, chandle);
+  }
+
+  // Toss old buffer, if present
+  if (backend->buffer != 0)
+    user_buffer_destroy(backend->buffer);
+  backend->buffer = buffer;
+
+  return burrow_backend_http_process(backend);
+}
+
 static burrow_result_t
 burrow_backend_http_delete_accounts(void *ptr, const burrow_command_st *cmd)
 {
-  burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  /* stub */
-  const burrow_filters_st *filters = cmd->filters;
-  (void)backend;
-  (void)filters;
-  return BURROW_OK;
+  return burrow_backend_http_common_delete(ptr, cmd);
 }
 
 static burrow_result_t
 burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
 {
-  burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  /* stub */
-  const char *account = cmd->account;
-  const burrow_filters_st *filters = cmd->filters;
-
-  (void) backend;
-  (void) account;
-  (void) filters;
-  return BURROW_OK;
+  return burrow_backend_http_common_delete(ptr, cmd);
 }
 
 /**
