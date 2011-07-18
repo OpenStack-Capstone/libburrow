@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 typedef struct msg_st {
   char *msg_id;
@@ -66,12 +67,15 @@ static void _message(burrow_st * burrow,
   (void) body;
   (void) body_size;
   (void) attributes;
-  fprintf(stderr, "_message: called, msgid: '%s', body size %d, body = \"%s\"\n", message_id, body_size, (char *)body);
-  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
-    fprintf(stderr, "\tttl = %d\n", burrow_attributes_get_ttl(attributes));
-  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE))
-    fprintf(stderr, "\thide = %d\n", burrow_attributes_get_hide(attributes));
-	  
+  fprintf(stderr, "_message: called, msgid: '%s', body size %d, body = \"%s\"\n",
+	  (message_id ? message_id : "UNSET"),
+	  body_size, (char *)body);
+  if (attributes) {
+    if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
+      fprintf(stderr, "\tttl = %d\n", burrow_attributes_get_ttl(attributes));
+    if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE))
+      fprintf(stderr, "\thide = %d\n", burrow_attributes_get_hide(attributes));
+  }
 }
 
 int main(int argc, char **argv)
@@ -131,19 +135,23 @@ int main(int argc, char **argv)
   }
 
   burrow_set_context(burrow, &client);
-  burrow_set_complete_fn(burrow, &_complete);
   burrow_set_log_fn(burrow, &_log);
   burrow_set_message_fn(burrow, &_message);
 
+  (void) _complete;
   /* Insert the first one here to kick the loop off. This only sets start state,
      it doesn't run the loop. */
+  burrow_set_complete_fn(burrow, &_complete);
   msg = client.current_message;
+  printf("Calling create_message(%s,%s,%s,\"%s\",..)\n\n", client.account,
+	 client.queue, msg->msg_id, msg->body);
   burrow_create_message(burrow, client.account, client.queue,
-    msg->msg_id, msg->body, msg->body_size, NULL);
+  			msg->msg_id, msg->body, msg->body_size, NULL);
 
   /* This runs until there are no more tasks. */
   burrow_process(burrow);
 
+  printf("Ok, now let us see what messages the server has\n");
   /* Now see what the server has */
   burrow_get_messages(burrow, client.account, client.queue, NULL);
   burrow_result_t result;
@@ -151,7 +159,72 @@ int main(int argc, char **argv)
     result = burrow_process(burrow);
   } while (result != BURROW_OK);
 
+  /* Now get the first message */
+  {
+    printf("Now we will get the first message\n");
+    burrow_filters_st *filters = burrow_filters_create(0,0);
+
+    burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
+    burrow_get_message(burrow, client.account, client.queue, 
+		       client.messages->msg_id,
+		       filters
+		       );
+    burrow_process(burrow);
+  }
+
+  /*
   burrow_destroy(burrow);
+  if (use_http == 0) {
+    burrow = burrow_create(NULL, "dummy");
+    printf("burrow = %p\n", burrow);
+  } else {
+    burrow = burrow_create(NULL, "http");
+    printf("burrow = %p\n", burrow);
+    burrow_backend_set_option(burrow, "server", "localhost");
+    burrow_backend_set_option(burrow, "port", "8080");
+  }
+  */
+
+  /* Now update the first message to hide for a couple seconds */
+  uint32_t seconds = 3;
+  printf("Now we will update the first message to hide it for %d seconds\n",seconds);
+  burrow_filters_st *filters = burrow_filters_create(0,0);
+  burrow_attributes_st *attributes = burrow_attributes_create(0,0);
+  burrow_attributes_set_hide(attributes, seconds);
+  burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
+  burrow_update_message(burrow, client.account, client.queue, 
+			client.messages->msg_id,
+			attributes,
+			filters
+			);
+  burrow_process(burrow);
+
+  printf("Get all messages, one should be missing\n");
+  burrow_get_messages(burrow, client.account, client.queue, NULL);
+  burrow_process(burrow);
+  printf("Now sleep until the messages should reappear\n");
+  sleep(seconds + 1);
+
+  printf("Now get all messages again\n");
+  burrow_get_messages(burrow, client.account, client.queue, NULL);
+  burrow_process(burrow);
+  
+  printf("Ok, now let us delete one message\n");
+  burrow_filters_free(filters);
+  filters = burrow_filters_create(0,0);
+  burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
+  burrow_delete_message(burrow, client.account, client.queue, client.messages->msg_id,
+			NULL);
+  burrow_process(burrow);
+
+  printf("Get all messages, one should be missing\n");
+  burrow_get_messages(burrow, client.account, client.queue, NULL);
+  burrow_process(burrow);
+
+  printf("finishing up\n");
+
+  burrow_destroy(burrow);
+  exit(0);
 
   return client.return_code;
 }

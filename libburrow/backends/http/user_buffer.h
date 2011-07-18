@@ -19,6 +19,8 @@ size_t user_buffer_curl_write_function(char *data, size_t size, size_t nmemb, vo
 
 size_t user_buffer_curl_read_function(char *data, size_t size, size_t nmemb, void *userdata);
 
+size_t user_buffer_curl_read_nothing_function(char *data, size_t size, size_t nmemb, void *userdata);
+
 char *user_buffer_get_text(const user_buffer *buffer);
 
 size_t user_buffer_get_size(const user_buffer *buffer);

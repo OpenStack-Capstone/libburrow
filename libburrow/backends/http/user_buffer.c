@@ -106,5 +106,14 @@ user_buffer_curl_read_function(char *data, size_t size, size_t nmemb, void *user
   }
 }
 
-
+size_t
+user_buffer_curl_read_nothing_function(char *data, size_t size, size_t nmemb,
+				       void *userdata)
+{
+  (void)data;
+  (void)size;
+  (void)nmemb;
+  (void)userdata;
+  return 0;
+}
 

@@ -29,6 +29,7 @@ struct burrow_backend_st {
   CURL *chandle;
   CURLM *curlptr;
   int malloced;
+  bool get_body_only;
 };
 typedef struct burrow_backend_st burrow_backend_t;
 
@@ -136,6 +137,7 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
   backend->proto_version = strdup("v1.0");
   backend->buffer = 0;
   backend->chandle = 0;
+  backend->get_body_only = false;
 
   backend->curlptr = curl_multi_init();
   return (void *)backend;
@@ -156,9 +158,10 @@ burrow_backend_http_destroy(void * ptr) {
     free(backend->proto_version);
   if (backend->buffer)
     user_buffer_destroy(backend->buffer);
-  if (backend->chandle) 
+  if (backend->chandle) {
+    curl_multi_remove_handle(backend->curlptr, backend->chandle);
     curl_easy_cleanup(backend->chandle);
-
+  }
   curl_multi_cleanup(backend->curlptr);
   
   if (backend->malloced == 1)
@@ -266,8 +269,11 @@ static int burrow_backend_http_json_callback(void *ctx,
   */
   burrow_command_t bcommand = jproc->backend->burrow->cmd.command;
   if (
-      (bcommand == BURROW_CMD_GET_MESSAGES) ||
       (bcommand == BURROW_CMD_GET_MESSAGE) ||
+      (bcommand == BURROW_CMD_GET_MESSAGES) ||
+      (bcommand == BURROW_CMD_UPDATE_MESSAGE) ||
+      (bcommand == BURROW_CMD_UPDATE_MESSAGES) ||
+      (bcommand == BURROW_CMD_DELETE_MESSAGE) ||
       (bcommand == BURROW_CMD_DELETE_MESSAGES))
     {
       switch(type) {
@@ -345,14 +351,16 @@ static int burrow_backend_http_json_callback(void *ctx,
       case JSON_T_ARRAY_BEGIN:
 	break;
       case JSON_T_ARRAY_END:
-	/* probably should call the appropriate callback here? */
-	assert(0==1);
+	/* Does not seem to be anything to do here. */
 	break;
       case JSON_T_STRING:
-	assert(0==1);
+	if (bcommand == BURROW_CMD_GET_ACCOUNTS) {
+	  burrow_callback_account(jproc->backend->burrow,
+				  value->vu.str.value);
+	}
 	break;
       default:
-	assert(0==1);
+	assert("We should never get here" == 0);
 	break;
       }
     }
@@ -377,7 +385,8 @@ static int burrow_backend_http_parse_json(burrow_backend_t *backend,
   config.handle_floats_manually = 0;
   jc = new_JSON_parser(&config);
 
-  fprintf(stderr, "Text: \"%s\"\n", jsontext);
+  jsontext[jsonsize]='\0';
+  fprintf(stderr, "Text: \"%s\"\n\n", jsontext);
 
   int i;
   for (i = 0; i < (int)jsonsize; ++i) {
@@ -398,8 +407,6 @@ static int burrow_backend_http_parse_json(burrow_backend_t *backend,
   burrow_easy_json_st_destroy(json_processing);
   return 0;
 }
-
-
 
 
 static burrow_result_t
@@ -451,6 +458,8 @@ printf("create_message url = \"%s\"\n", url);
     user_buffer_destroy(backend->buffer);
   }
   backend->buffer = buffer;
+  url[0] = '\0';
+  free(url);
 
   return burrow_backend_http_process((void*)backend);
 }
@@ -461,9 +470,12 @@ burrow_backend_http_process(void *ptr) {
   CURLMcode retval;
   int running_handles;
 
+  printf("burrow_backend_http_process starting\n");
   do {
     retval = curl_multi_perform(backend->curlptr, &running_handles);
   } while (retval == CURLM_CALL_MULTI_PERFORM);
+
+  printf("burrow_backend_http_process finished looking at stuff, running handles = %d\n", running_handles);
   
   /* If curl still monitoring fds, we need to tell burrow "frontend"
      which ones to watch for.
@@ -510,11 +522,26 @@ burrow_backend_http_process(void *ptr) {
 
     if ((command == BURROW_CMD_GET_MESSAGES) ||
 	(command == BURROW_CMD_GET_MESSAGE) ||
-	(command == BURROW_CMD_DELETE_MESSAGES))
+	(command == BURROW_CMD_DELETE_MESSAGES) ||
+	(command == BURROW_CMD_DELETE_MESSAGE) ||
+	(command == BURROW_CMD_UPDATE_MESSAGES) ||
+	(command == BURROW_CMD_UPDATE_MESSAGE) ||
+	(command == BURROW_CMD_GET_ACCOUNTS) ||
+	(command == BURROW_CMD_GET_QUEUES)
+	)
       {
-	burrow_backend_http_parse_json(backend,
-				       user_buffer_get_text(backend->buffer),
-				       user_buffer_get_size(backend->buffer));
+	if (backend->get_body_only)
+	  burrow_callback_message(backend->burrow,
+				  0,
+				  user_buffer_get_text(backend->buffer),
+				  user_buffer_get_size(backend->buffer),
+				  0);
+	else
+	  if (user_buffer_get_size(backend->buffer) > 0)
+	    burrow_backend_http_parse_json(backend,
+					   user_buffer_get_text(backend->buffer),
+					   user_buffer_get_size(backend->buffer));
+	
       }
     
     return BURROW_OK;
@@ -527,33 +554,97 @@ burrow_backend_http_event_raised(void *ptr,
 				 burrow_ioevent_t event)
 {
   /* stub.  we are ignoring this for now.*/
+  /* in future it might be useful to pay attention, since right now,
+     libcurl needs to check the descriptors before it knows which has
+     activity
+  */
   (void)ptr;
   (void)fd;
   (void)event;
   return BURROW_OK;
 }
 
+/**
+ * gets lists of strings, specificaly get_queues and get_accounts
+ */
+static burrow_result_t
+burrow_backend_http_get_lists(void *ptr, const burrow_command_st *cmd)
+{
+  burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  const char *account = cmd->account;
+  const burrow_filters_st *filters = cmd->filters;
+  burrow_st *burrow = backend->burrow;
+  burrow_command_t command = burrow->cmd.command;
+  size_t urllen = 0;
+  char *filter_str = 0;
+  backend->get_body_only = false;
+
+  CURL *chandle;
+  chandle = curl_easy_init();
+  filter_str = burrow_backend_http_filters_to_string(filters);
+  
+  urllen = strlen(backend->baseurl) +
+    strlen(backend->proto_version) +
+    strlen(account) +
+    (filter_str == 0? 0 : strlen(filter_str)) + 
+    + 128;
+  char *url = malloc(urllen);
+  size_t len_so_far = 0;
+
+  snprintf(url, urllen, "%s/%s",
+	   backend->baseurl,
+	   backend->proto_version
+	   );
+
+  if (command == BURROW_CMD_GET_QUEUES) {
+    len_so_far = strlen(url);
+    snprintf(url+len_so_far, urllen-len_so_far, "/%s", account);
+  }
+
+  curl_easy_setopt(chandle, CURLOPT_URL, url);
+  curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
+  curl_easy_setopt(chandle, CURLOPT_HTTPGET, 1L);
+
+  user_buffer *buffer = user_buffer_create(0,0);
+  curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION,
+		   user_buffer_curl_write_function);
+  curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
+
+  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
+  curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
+
+  // Toss old curl handle, if present and different
+  if (backend->chandle) {
+    if (backend->chandle != chandle) {
+      curl_multi_remove_handle(backend->curlptr, backend->chandle);
+      curl_easy_cleanup(backend->chandle);
+      backend->chandle=chandle;
+      curl_multi_add_handle(backend->curlptr, chandle);
+    }
+  } else {
+    backend->chandle = chandle;
+    curl_multi_add_handle(backend->curlptr, chandle);
+  }
+
+  // Toss old buffer, if present
+  if (backend->buffer != 0)
+    user_buffer_destroy(backend->buffer);
+  backend->buffer = buffer;
+
+  return burrow_backend_http_process(backend);
+}
+
 static burrow_result_t
 burrow_backend_http_get_accounts(void* ptr,
 				 const burrow_command_st *cmd)
 {
-  /* stub */
-  (void) ptr;
-  (void)cmd;
-  return BURROW_OK;
+  return burrow_backend_http_get_lists(ptr, cmd);
 }
 
 static burrow_result_t
 burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
 {
-  /* stub */
-  (void) ptr;
-  (void) cmd;
-  const burrow_filters_st *filters = cmd->filters; 
-  const char *account = cmd->account;
-  (void) filters;
-  (void) account;
-  return BURROW_OK;
+  return burrow_backend_http_get_lists(ptr, cmd);
 }
 
 static burrow_result_t
@@ -581,100 +672,133 @@ burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
   return BURROW_OK;
 }
 
+/**
+ * Performs anything that can get a message(s).  That includes get_message,
+ * update_message and delete_message
+ */
 static burrow_result_t
-burrow_backend_http_delete_messages(void *ptr, const burrow_command_st *cmd)
-{
-  burrow_backend_t *backend = (burrow_backend_t *) ptr;
-  const char *account = cmd->account;
-  const char *queue = cmd->queue;
-  const burrow_filters_st *filters = cmd->filters;
-  (void)backend;
-  (void)account;
-  (void)queue;
-  (void)filters;
-  return BURROW_OK;
-}
-
-static burrow_result_t
-burrow_backend_http_delete_message(void *ptr, const burrow_command_st *cmd)
-{
+burrow_backend_http_common_getting(void *ptr,
+				   const burrow_command_st *cmd)
+{  
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   const char *account = cmd->account;
   const char *queue = cmd->queue;
   const char *message_id = cmd->message_id;
+  const burrow_attributes_st *attributes = cmd->attributes;
   const burrow_filters_st *filters = cmd->filters;
+  burrow_st *burrow = backend->burrow;
+  burrow_command_t command = burrow->cmd.command;
+  size_t urllen = 0;
+  char *filter_str = 0;
+  char *attribute_str = 0;
 
-  (void)backend;
-  (void)account;
-  (void)queue;
-  (void)message_id;
-  (void)filters;
-  return BURROW_OK;
-}
+  if ((filters) &&
+      (filters->set | BURROW_FILTERS_DETAIL) &&
+      (filters->detail == BURROW_DETAIL_BODY))
+    backend->get_body_only = true;
+  else
+    backend->get_body_only = false;
 
-static burrow_result_t
-burrow_backend_http_get_message(void *ptr, const burrow_command_st *cmd)
-{
-  burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  const char *account = cmd->account;
-  const char *queue = cmd->queue;
-  const char *message_id = cmd->message_id;
-  const burrow_filters_st *filters = cmd->filters;
-  
-  (void)backend;
-  (void)account;
-  (void)queue;
-  (void)message_id;
-  (void)filters;
-  return BURROW_OK;
-}
+  CURL *chandle;
 
+  //if (backend->chandle) {
+  //chandle = backend->chandle;
+  //curl_easy_reset(chandle);
+  //} else {
+    chandle = curl_easy_init();
+    //}
 
-static burrow_result_t
-burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
-{
-  burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  const char *account = cmd->account;
-  const char *queue = cmd->queue;
-  const burrow_filters_st *filters = cmd->filters;
+  if ((command == BURROW_CMD_UPDATE_MESSAGE) || (command == BURROW_CMD_DELETE_MESSAGE)||
+      (command == BURROW_CMD_GET_MESSAGE))
+    message_id = cmd->message_id;
+  else
+    message_id = 0;
 
-  CURL *chandle = curl_easy_init();
+  filter_str = burrow_backend_http_filters_to_string(filters);
 
-  char *filter_str = burrow_backend_http_filters_to_string(filters);
-  
-  size_t urllen = strlen(backend->baseurl) + strlen(account) +
+  // If this is an update, attributes are also sent.
+  if ((command == BURROW_CMD_UPDATE_MESSAGES) || (command == BURROW_CMD_UPDATE_MESSAGE))
+    {
+      attribute_str = burrow_backend_http_attributes_to_string(attributes);
+    }
+    
+  urllen = strlen(backend->baseurl) +
+    strlen(backend->proto_version) +
+    strlen(account) +
     strlen(queue) +
+    (message_id == 0? 0 : strlen(message_id)) +
     (filter_str == 0? 0 : strlen(filter_str)) + 
+    (attribute_str == 0 ? 0 : strlen(attribute_str)) +
     + 128;
   char *url = malloc(urllen);
+  size_t len_so_far = 0;
 
-  snprintf(url, urllen, "%s/%s/%s/%s", backend->baseurl,
+  snprintf(url, urllen, "%s/%s/%s/%s",
+	   backend->baseurl,
 	   backend->proto_version,
 	   account,
 	   queue);
+  if ((command == BURROW_CMD_UPDATE_MESSAGE) || (command == BURROW_CMD_DELETE_MESSAGE)||
+      (command == BURROW_CMD_GET_MESSAGE)) {
+    len_so_far = strlen(url);
+    snprintf(url + len_so_far, urllen-len_so_far, "/%s",
+	     message_id);
+  }
   if (filter_str != 0) {
-    snprintf(url, urllen, "?%s", filter_str);
+    len_so_far = strlen(url);
+    snprintf(url + len_so_far, urllen - len_so_far, "?%s", filter_str);
     free(filter_str);
+  }
+  if (attribute_str != 0) {
+    len_so_far = strlen(url);
+    if (filter_str != 0)
+      snprintf(url+len_so_far, urllen-len_so_far, "&%s", attribute_str);
+    else
+      snprintf(url+len_so_far, urllen-len_so_far, "?%s", filter_str);
   }
   fprintf(stderr, "URL to send is \"%s\"\n", url);
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
-  curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0);
+  if ((command == BURROW_CMD_GET_MESSAGES) || (command == BURROW_CMD_GET_MESSAGE)){
+    curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
+    curl_easy_setopt(chandle, CURLOPT_HTTPGET, 1L);
+  } else if ((command == BURROW_CMD_UPDATE_MESSAGES) ||
+	     (command == BURROW_CMD_UPDATE_MESSAGE)){
+    //curl_easy_setopt(chandle, CURLOPT_UPLOAD, 1L);
+    curl_easy_setopt(chandle, CURLOPT_POST, 1L);
+    curl_easy_setopt(chandle, CURLOPT_POSTFIELDSIZE, 0L);
+  } else if ((command == BURROW_CMD_DELETE_MESSAGES) ||
+	     (command==BURROW_CMD_DELETE_MESSAGE)){
+    curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
+    curl_easy_setopt(chandle, CURLOPT_CUSTOMREQUEST, "DELETE");
+  }
 
   user_buffer *buffer = user_buffer_create(0,0);
-  curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION, user_buffer_curl_write_function);
+  curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION,
+		   user_buffer_curl_write_function);
   curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
 
+  if ((command == BURROW_CMD_UPDATE_MESSAGE) ||
+      (command == BURROW_CMD_UPDATE_MESSAGES)) {
+    curl_easy_setopt(chandle, CURLOPT_READFUNCTION,
+		     user_buffer_curl_read_nothing_function);
+    curl_easy_setopt(chandle, CURLOPT_READDATA, 4000);
+  }
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
-  // Toss old curl handle, if present
+  // Toss old curl handle, if present and different
   if (backend->chandle) {
-    curl_multi_remove_handle(backend->curlptr, backend->chandle);
-    curl_easy_cleanup(backend->chandle);
+    if (backend->chandle != chandle) {
+      curl_multi_remove_handle(backend->curlptr, backend->chandle);
+      curl_easy_cleanup(backend->chandle);
+      backend->chandle=chandle;
+      curl_multi_add_handle(backend->curlptr, chandle);
+    }
+  } else {
+    backend->chandle = chandle;
+    curl_multi_add_handle(backend->curlptr, chandle);
   }
-  backend->chandle = chandle;
-  curl_multi_add_handle(backend->curlptr, chandle);
 
   // Toss old buffer, if present
   if (backend->buffer != 0)
@@ -685,40 +809,40 @@ burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
 }
 
 static burrow_result_t
+burrow_backend_http_delete_message(void *ptr, const burrow_command_st *cmd)
+{
+  return burrow_backend_http_common_getting(ptr, cmd);
+}
+
+static burrow_result_t
+burrow_backend_http_delete_messages(void *ptr, const burrow_command_st *cmd)
+{
+  return burrow_backend_http_common_getting(ptr, cmd);
+}
+
+static burrow_result_t
+burrow_backend_http_get_message(void *ptr, const burrow_command_st *cmd)
+{
+  return burrow_backend_http_common_getting(ptr, cmd);
+}
+
+static burrow_result_t
+burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
+{
+  return burrow_backend_http_common_getting(ptr, cmd);
+}
+
+static burrow_result_t
 burrow_backend_http_update_message(void *ptr, const burrow_command_st *cmd)
 {
-  burrow_backend_t *backend = (burrow_backend_t *)ptr;
-
-  const char *account = cmd->account;
-  const char *queue = cmd->queue;
-  const char *message_id = cmd->message_id;
-  const burrow_attributes_st *attributes = cmd->attributes;
-  const burrow_filters_st *filters = cmd->filters;
-  
-  (void)backend;
-  (void)account;
-  (void)queue;
-  (void)message_id;
-  (void)filters;
-  (void)attributes;
-  return BURROW_OK;
+  return burrow_backend_http_common_getting(ptr, cmd);
 }
 
 static burrow_result_t
 burrow_backend_http_update_messages(void *ptr, const burrow_command_st *cmd)
 {
-  burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  const char *account = cmd->account;
-  const char *queue = cmd->queue;
-  const burrow_attributes_st *attributes = cmd->attributes;
-  const burrow_filters_st *filters = cmd->filters;
+  return burrow_backend_http_common_getting(ptr, cmd);
 
-  (void)backend;
-  (void)account;
-  (void)queue;
-  (void)filters;
-  (void)attributes;
-  return BURROW_OK;
 }
 
 

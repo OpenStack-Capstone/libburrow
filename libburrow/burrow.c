@@ -80,6 +80,7 @@ static void burrow_poll_fds(burrow_st *burrow)
   
   watch_size = burrow->watch_size;
   uint32_t which_pfd = 0;
+  
   while(count) {
     if (pfd->revents) { /* Found a live event */
       
@@ -94,20 +95,19 @@ static void burrow_poll_fds(burrow_st *burrow)
       /* And copy the last pfd to this location, if there are more. */
       count--;
       if (which_pfd < (watch_size - 1)) {
-        burrow->pfds[which_pfd] = burrow->pfds[watch_size];
-        --burrow->watch_size;
+        *pfd = burrow->pfds[watch_size];
       }
+      --burrow->watch_size;
 
       /* Note that we don't increment pfd here, because this location
-         now has new data. BUG: I think this addition is buggy? */
-      ++which_pfd;
+         now has new data. */
+
     }
     else {
       pfd++;
       which_pfd++;
     }
   }
-  burrow->watch_size = watch_size;
   return;
 }
 
