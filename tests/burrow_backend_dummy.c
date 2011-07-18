@@ -55,6 +55,13 @@ typedef enum {
   EXPECT_ALL        = ~EXPECT_NONE
 } expectation_t;
 
+typedef enum {
+  VERBOSE_DEBUG,
+  VERBOSE_WARN,
+  VERBOSE_ERROR,
+  VERBOSE_NONE,
+} verbose_t;
+
 struct client_st {
   int message_callback_called;
   int queue_callback_called;
@@ -66,6 +73,8 @@ struct client_st {
   expectation_t must, must_not;
   expectation_t result;
   
+  verbose_t verbose;
+  
   const char *acct;
   const char *queue;
   const char *msgid;
@@ -75,12 +84,16 @@ struct client_st {
  
 typedef struct client_st client_st;
 
-static void log_callback(burrow_st *burrow, burrow_verbose_t verbose, const char *msg)
+static void log_callback(burrow_st *burrow, burrow_verbose_t error_level, const char *msg)
 {
   client_st *client = burrow_get_context(burrow);
-  if (verbose >= BURROW_VERBOSE_ERROR)
+  if (error_level >= BURROW_VERBOSE_ERROR)
     client->result |= LOG_ERROR;
-  printf("log_callback: %s\n", msg);
+
+  if ((error_level >= BURROW_VERBOSE_ERROR && VERBOSE_ERROR >= client->verbose) ||
+      (error_level >= BURROW_VERBOSE_WARN && VERBOSE_WARN >= client->verbose) ||
+      (error_level >= BURROW_VERBOSE_DEBUG && VERBOSE_DEBUG >= client->verbose))
+    printf("log_callback: %s\n", msg);
 }
 
 static void message_callback(burrow_st *burrow, const char *message_id, const void *body, size_t body_size, const burrow_attributes_st *attributes)
@@ -88,9 +101,10 @@ static void message_callback(burrow_st *burrow, const char *message_id, const vo
   client_st *client = burrow_get_context(burrow);
   client->message_callback_called++;
   
-  printf("message_callback called(%d): id: %s, body: %s, body_size: %u, ttl %d, hide %d\n",
-         client->message_callback_called, message_id, (body ? (const char *)body : ""), body_size,
-         burrow_attributes_get_ttl(attributes), burrow_attributes_get_hide(attributes));
+  if (VERBOSE_DEBUG >= client->verbose)
+    printf("message_callback called(%d): id: '%s', body: '%s', body_size: %u, ttl %d, hide %d\n",
+           client->message_callback_called, message_id, (body ? (const char *)body : ""), body_size,
+           burrow_attributes_get_ttl(attributes), burrow_attributes_get_hide(attributes));
 
   if (client->result & CALL_MSG)
     client->result |= MULT_MSG_ONLY;
@@ -113,7 +127,8 @@ static void queue_callback(burrow_st *burrow, const char *queue)
   else
     client->result |= CALL_QUEUE;
 
-  printf("queues callback called(%d): queue: %s\n", client->queue_callback_called, queue);
+  if (VERBOSE_DEBUG >= client->verbose)
+    printf("queue callback called(%d): queue: '%s'\n", client->queue_callback_called, queue);
 
   if (!strcmp(client->queue, queue)) {
     client->result |= MATCH_QUEUE_ONLY;
@@ -131,7 +146,8 @@ static void account_callback(burrow_st *burrow, const char *account)
   else
     client->result |= CALL_ACCT;
 
-  printf("account callback called(%d): account: %s\n", client->account_callback_called, account);
+  if (VERBOSE_DEBUG >= client->verbose)
+    printf("account callback called(%d): account: '%s'\n", client->account_callback_called, account);
 
   if (!strcmp(client->acct, account)) {
     client->result |= MATCH_ACCT_ONLY;
@@ -142,14 +158,16 @@ static void complete_feedback(burrow_st *burrow)
 {
   client_st *client = burrow_get_context(burrow);
   client->complete_callback_called++;
-  printf("complete callback called(%d)\n", client->complete_callback_called);
+  if (VERBOSE_DEBUG >= client->verbose)
+    printf("complete callback called(%d)\n", client->complete_callback_called);
 }
 
 static void *custom_malloc(burrow_st *burrow, size_t size)
 {
   client_st *client = burrow_get_context(burrow);
   client->custom_malloc_called++;
-  printf("custom malloc called(%d): size %u\n", client->custom_malloc_called, size);
+  if (VERBOSE_DEBUG >= client->verbose)
+    printf("custom malloc called(%d): size %u\n", client->custom_malloc_called, size);
   return malloc(size);
 }
 
@@ -157,7 +175,8 @@ static void custom_free(burrow_st *burrow, void *ptr)
 {
   client_st *client = burrow_get_context(burrow);
   client->custom_free_called++;
-  printf("custom free called(%d): address %x\n", client->custom_free_called, ptr);
+  if (VERBOSE_DEBUG >= client->verbose)
+    printf("custom free called(%d): address %x\n", client->custom_free_called, ptr);
   free(ptr);
 }
 
@@ -201,26 +220,29 @@ static void print_expectation(expectation_t e)
     const char *s;
   } descriptions[] = {
     {CALL_QUEUE, "CALL_QUEUE"},
-    {MATCH_QUEUE, "MATCH_QUEUE"},
-    {MULT_QUEUE, "MULT_QUEUE"},
+    {MATCH_QUEUE_ONLY, "MATCH_QUEUE"},
+    {MULT_QUEUE_ONLY, "MULT_QUEUE"},
     {CALL_ACCT, "CALL_ACCT"},
-    {MATCH_ACCT, "MATCH_ACCT"},
-    {MULT_ACCT, "MULT_ACCT"},
+    {MATCH_ACCT_ONLY, "MATCH_ACCT"},
+    {MULT_ACCT_ONLY, "MULT_ACCT"},
     {CALL_MSG, "CALL_MSG"},
-    {MATCH_MSG, "MATCH_MSG"},
-    {MULT_MSG, "MULT_MSG"},
-    {LOG_ERROR, "LOG_ERROR"}
+    {MATCH_MSG_ONLY, "MATCH_MSG"},
+    {MULT_MSG_ONLY, "MULT_MSG"},
+    {LOG_ERROR, "LOG_ERROR"},
   };
   const int count = sizeof(descriptions) / sizeof(descriptions[0]);
-  const char *divide = "";
   int i = 0;
   
-  for(i = 0; i < count; i++) {
-    if (e & descriptions[i].e) {
-      printf("%s%s", divide, descriptions[i].s);
-      divide = " | ";
+  for(i = 0; i < count; i++)
+    if ((e & descriptions[i].e) == descriptions[i].e) {
+      printf("%s", descriptions[i].s);
+      break;
     }
-  }
+  for(i++; i < count; i++)
+    if ((e & descriptions[i].e) == descriptions[i].e) {
+      printf(", %s", descriptions[i].s);
+      break;
+    }
 }
 
 
@@ -244,7 +266,7 @@ static void client_check(client_st *client)
 int main(void)
 {
   burrow_st *burrow;
-  ssize_t size;
+  size_t size;
   client_st *client = malloc(sizeof(client_st));
   burrow_attributes_st *attr;
   
@@ -252,8 +274,9 @@ int main(void)
   client->acct = "my acct";
   client->queue = "my queue";
   client->msgid = "my messageid";
-  client->body = (uint8_t *)"msg body";
+  client->body = (void *)"msg body";
   client->body_size = strlen((char*)client->body) + 1;
+  client->verbose = VERBOSE_ERROR;
   
   burrow_test("burrow_size dummy");
 

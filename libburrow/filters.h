@@ -38,7 +38,7 @@ BURROW_API
 void burrow_filters_unset(burrow_filters_st *filters, burrow_filters_set_t set);
 
 BURROW_API
-bool burrow_filters_check(burrow_filters_st *filters, burrow_filters_set_t set);
+bool burrow_filters_check(const burrow_filters_st *filters, burrow_filters_set_t set);
 
 BURROW_API
 void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidden);
@@ -56,19 +56,19 @@ BURROW_API
 void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detail);
 
 BURROW_API
-bool burrow_filters_get_match_hidden(burrow_filters_st *filters);
+bool burrow_filters_get_match_hidden(const burrow_filters_st *filters);
 
 BURROW_API
-const char *burrow_filters_get_marker(burrow_filters_st *filters);
+const char *burrow_filters_get_marker(const burrow_filters_st *filters);
 
 BURROW_API
-uint32_t burrow_filters_get_limit(burrow_filters_st *filters);
+uint32_t burrow_filters_get_limit(const burrow_filters_st *filters);
 
 BURROW_API
-uint32_t burrow_filters_get_wait(burrow_filters_st *filters);
+uint32_t burrow_filters_get_wait(const burrow_filters_st *filters);
 
 BURROW_API
-burrow_detail_t burrow_filters_get_detail(burrow_filters_st *filters);
+burrow_detail_t burrow_filters_get_detail(const burrow_filters_st *filters);
 
 
 #ifdef __cplusplus

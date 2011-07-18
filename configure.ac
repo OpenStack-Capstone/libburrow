@@ -56,7 +56,7 @@ PKG_CHECK_EXISTS([libcurl >= 7.21.2],[],[AC_DEFINE([CURL_DISABLE_TYPECHECK],[1],
 AC_DEFINE_UNQUOTED([BURROW_MODULE_EXT], ["$acl_cv_shlibext"],
                    [Extension to use for modules.])
 
-AC_CHECK_HEADERS([stdarg.h stdio.h stdlib.h string.h])
+AC_CHECK_HEADERS([stdarg.h stdio.h stdlib.h string.h poll.h errno.h])
 
 AC_CONFIG_FILES(Makefile docs/doxygen/header.html)
 AC_CONFIG_FILES(support/libburrow.pc support/libburrow.spec)

@@ -19,35 +19,56 @@
 /* Functions visible to the backend: */
 
 const char *_error_strings[] = {
-  "***MAX***",
+  "MAX", /* this and NONE should never be printed... but just in case */
   "DEBUG",
   "INFO",
   "WARN",
   "ERROR",
   "FATAL",
-  "***NONE***",
+  "NONE",
 };
+
+const char *burrow_verbose_name(burrow_verbose_t verbose)
+{
+  return _error_strings[verbose];
+}
+
+void burrow_internal_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args)
+{ 
+  char buffer[BURROW_MAX_ERROR_SIZE];
+
+  if (burrow->log_fn == NULL) {
+    printf("%5s: ", burrow_verbose_name(verbose));
+    vprintf(msg, args);
+    printf("\n");
+  } else {
+    vsnprintf(buffer, BURROW_MAX_ERROR_SIZE, msg, args);
+    burrow->log_fn(burrow, verbose, buffer);
+  }
+}
+
 
 void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
-  uint32_t count;
+  size_t needed;
 
-  count = burrow->watch_size + 1;
+  needed = burrow->watch_size + 1;
 
-  if (burrow->pfds_size < count) {
-    pfd = realloc(burrow->pfds, count * sizeof(struct pollfd));
+  if (burrow->pfds_size < needed) {
+    pfd = realloc(burrow->pfds, needed * sizeof(struct pollfd));
     if (!pfd) {
-      /* raise error */
+      burrow_log_error(burrow, "burrow_internal_watch_fd: couldn't reallocate pfds struct");
+      /* TODO: something more here? how to bubble up this error? */
       return;
     }
     burrow->pfds = pfd;
-    burrow->pfds_size = count;
+    burrow->pfds_size = needed;
   }
 
-  burrow->watch_size = count;
+  burrow->watch_size = needed;
 
-  pfd = &burrow->pfds[count-1];
+  pfd = &burrow->pfds[needed-1];
   pfd->fd = fd;
   pfd->events = 0;
   if (events & BURROW_IOEVENT_READ)
@@ -56,24 +77,25 @@ void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events
     pfd->events |= POLLOUT;
 }
 
-static void burrow_poll_fds(burrow_st *burrow)
+static void burrow_internal_poll_fds(burrow_st *burrow)
 {
   int count;
   uint32_t watch_size;
-  struct pollfd *pfd, *last_pfd;
+  struct pollfd *pfd;
+  struct pollfd *last_pfd;
   
   if (burrow->watch_size == 0) /* nothing to watch */
     return;
 
   count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
   if (count == -1) {
-    /* TODO: something sensible here, handling errno */
+    burrow_log_error(burrow, "burrow_internal_poll_fds: poll: error encountered %d", errno);
     return;
   }
   if (count == 0) {
     /* Timeout has occurred */
-    /* TODO: something sensible here */
-    /* maybe cancel the current command? */
+    burrow_log_info(burrow, "burrow_internal_poll_fds: timeout %d reached", burrow->timeout);
+    burrow_cancel(burrow);
     return;
   }
   pfd = burrow->pfds;
@@ -144,19 +166,19 @@ burrow_result_t burrow_process(burrow_st *burrow)
         return BURROW_OK_WAITING; /* waiting is performed by the client */
       
       /* TODO: what if this returns for timeout or error? */
-      burrow_poll_fds(burrow); /* this should unblock the io */
+      burrow_internal_poll_fds(burrow); /* this should unblock the io */
       break;
 
     case BURROW_STATE_FINISH: /* backend is done */
       burrow->state = BURROW_STATE_IDLE; /* we now accept new commands */
       burrow->cmd.command = BURROW_CMD_NONE;
-      if (burrow->complete_fn)
-        burrow->complete_fn(burrow); /* could update burrow state by calling a command again */
+      /* Note: this could update burrow state by calling a command again: */
+      burrow_callback_complete(burrow); 
       break;
     
     case BURROW_STATE_IDLE: /* suppress compiler warning */
     default:
-      /* log error */
+      burrow_log_error(burrow, "burrow_process: unexpected or unknown state %d", burrow->state);
       break;
     }
   }
@@ -170,14 +192,14 @@ burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t 
   burrow_result_t result;
   
   if (!burrow->backend->event_raised) {
-    /* log error */; 
+    burrow_log_warn(burrow, "burrow_event_raised: event raised but not no handler defined");
     return BURROW_ERROR_UNSUPPORTED;
   }
 
   if (burrow->state != BURROW_STATE_WAITING)
-    (void)0/* log warning */;
+    burrow_log_error(burrow, "burrow_event_raised: event raised but not expected, fd %d, event %x", fd, event);
         
-   result = burrow->backend->event_raised(burrow->backend, fd, event);
+  result = burrow->backend->event_raised(burrow->backend_context, fd, event);
   
   if (result == BURROW_OK) {
     burrow->state = BURROW_STATE_READY;
@@ -199,49 +221,6 @@ void burrow_cancel(burrow_st *burrow)
   burrow->cmd.command = BURROW_CMD_NONE;
   burrow->cmd.command_fn = NULL;
 }
-
-/* Burrow Object Functions */
-#if 0
-static void burrow_default_message_fn(burrow_st *burrow,
-                                      const char *message_id,
-                                      const void *body,
-                                      size_t body_size,
-                                      const burrow_attributes_st *attributes)
-{
-  (void) burrow;
-  (void) message_id;
-  (void) body;
-  (void) body_size;
-  (void) attributes;
-  burrow_log_info(burrow, "burrow_default_message_fn: called, msgid: '%s', body size %d", message_id, body_size);
-}
-
-static void burrow_default_queue_fn(burrow_st *burrow, const char *queue)
-{
-  (void) burrow;
-  (void) queue;
-  burrow_log_info(burrow, "burrow_default_queues_fn: called, queue: %s", queue);
-}
-
-static void burrow_default_account_fn(burrow_st *burrow, const char *account)
-{
-  (void) burrow;
-  (void) account;
-  burrow_log_info(burrow, "burrow_default_accounts_fn: called, account: %s", account);
-}
-
-static void burrow_default_complete_fn(burrow_st *burrow)
-{
-  (void) burrow;
-  burrow_log_info(burrow, "burrow_default_complete_fn: called");
-}
-
-static void burrow_default_log_fn(burrow_st *burrow, burrow_verbose_t verbose, const char *msg)
-{
-  (void) burrow;
-  printf("libburrow(%s): %s\n", _error_strings[verbose], msg);
-}
-#endif
 
 burrow_st *burrow_create(burrow_st *burrow, const char *backend)
 {
@@ -282,7 +261,7 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   burrow->account_fn  = NULL;
   burrow->complete_fn = NULL;
   burrow->watch_fd_fn = NULL;
-  burrow->log_fn      = NULL; /* the only nulled callback, see burrow_log */
+  burrow->log_fn      = NULL;
   
   burrow->pfds = NULL;
   burrow->pfds_size = 0;
@@ -297,13 +276,10 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
 
 void burrow_destroy(burrow_st *burrow)
 {
-  /* TODO: more */
   burrow->backend->destroy((void*)(burrow+1));
-  if (burrow->pfds != NULL) {
-    burrow_free(burrow, burrow->pfds);
-    burrow->pfds = NULL;
-  }
- 
+
+  burrow_free(burrow, burrow->pfds);
+
   burrow_log_debug(burrow, "burrow_destroy: attributes list %c= NULL", (burrow->attributes_list == NULL ? '=' : '!')); 
   while (burrow->attributes_list != NULL)
     burrow_attributes_free(burrow->attributes_list);
@@ -313,19 +289,22 @@ void burrow_destroy(burrow_st *burrow)
     burrow_filters_free(burrow->filters_list);
 
   if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
+    burrow_log_debug(burrow, "burrow_destroy: freeing self-allocated structure"); 
     burrow_free(burrow, burrow);
   }
+  else
+    burrow_log_debug(burrow, "burrow_destroy: not freeing user-provided memory"); 
 }
 
-ssize_t burrow_size(const char *backend)
+size_t burrow_size(const char *backend)
 {
   burrow_backend_functions_st *backend_fns;
   
   backend_fns = burrow_backend_load_functions(backend);
   if (!backend_fns)
-    return -1;
+    return 0;
     
-  return (ssize_t)(sizeof(burrow_st) + backend_fns->size());
+  return (sizeof(burrow_st) + backend_fns->size());
 }
 
 burrow_st *burrow_clone(burrow_st *dest, burrow_st *src)
@@ -715,7 +694,6 @@ burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *
   return BURROW_OK;
 }
 
-
 burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters)
 {
   if (burrow->state != BURROW_STATE_IDLE) {
@@ -733,18 +711,4 @@ burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_s
     return burrow_process(burrow);
 
   return BURROW_OK;
-}
-
-void burrow_internal_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args)
-{ 
-  char buffer[BURROW_MAX_ERROR_SIZE];
-
-  if (burrow->log_fn == NULL) {
-    printf("%5s: ", _error_strings[verbose]);
-    vprintf(msg, args);
-    printf("\n");
-  } else {
-    vsnprintf(buffer, BURROW_MAX_ERROR_SIZE, msg, args);
-    burrow->log_fn(burrow, verbose, buffer);
-  }
 }

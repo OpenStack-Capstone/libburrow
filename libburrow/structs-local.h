@@ -18,8 +18,6 @@
 #define __BURROW_STRUCTS_LOCAL_H
 
 /* Private */
-
-/* Private */
 struct burrow_command_st
 {
   burrow_command_t command;
@@ -99,14 +97,18 @@ struct burrow_filters_st
 };
 
 struct burrow_st {
+  /* Frontend state */
   burrow_options_t options;
   burrow_flags_t flags;
-  void *context;
   burrow_verbose_t verbose;
   burrow_state_t state;
 
+  /* Current command structure */
   burrow_command_st cmd;
   
+  /* User callbacks & context */
+  void *context;
+
   burrow_message_fn *message_fn;
   burrow_queue_fn *queue_fn;
   burrow_account_fn *account_fn;
@@ -117,14 +119,17 @@ struct burrow_st {
   burrow_malloc_fn *malloc_fn;
   burrow_free_fn *free_fn;
   
+  /* Backend structure and context */
   burrow_backend_functions_st *backend;
   void *backend_context;
   
+  /* Built-in FD polling */
   uint32_t watch_size;
   int32_t timeout;
   uint32_t pfds_size;
   struct pollfd *pfds;
   
+  /* Managed objects */
   burrow_attributes_st *attributes_list;
   burrow_filters_st *filters_list;
 };

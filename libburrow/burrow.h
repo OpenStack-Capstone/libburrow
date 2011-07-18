@@ -56,15 +56,15 @@ BURROW_API
 void burrow_destroy(burrow_st *burrow);
 
 /**
- * Returns the size required to allocate a burrow object, optionally
- * with a specific backend included.
+ * Returns the size required to allocate a burrow object with the
+ * specified backend.
  *
- * @param backend Backend for size calculation
+ * @param backend Backend descriptor for size calculation
  * @return The size of a complete burrow structure w/ backend; if the specified
- *         backend is NULL or does not exist, then -1 is returned
+ *         backend is NULL or does not exist, then 0 is returned.
  */
 BURROW_API
-ssize_t burrow_size(const char *backend);
+size_t burrow_size(const char *backend);
 
 /**
  * Clones a burrow object in its entirety. Any ongoing commands/state will not
@@ -458,6 +458,16 @@ burrow_result_t burrow_process(burrow_st *burrow);
  */
 BURROW_API
 burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
+
+/**
+ * Returns a string describing the verbosity level. Useful for logging.
+ *
+ * @param verbose Verbosity level.
+ * @return A string describing the passed in verbosity level.
+ */
+BURROW_API
+const char *burrow_verbose_name(burrow_verbose_t verbose);
+
 
 #ifdef  __cplusplus
 }
