@@ -260,7 +260,7 @@ static void client_check(client_st *client)
 int main(void)
 {
   burrow_st *burrow;
-  ssize_t size;
+  size_t size;
   client_st *client = malloc(sizeof(client_st));
   burrow_attributes_st *attr;
   

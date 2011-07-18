@@ -51,7 +51,7 @@ void burrow_internal_log(burrow_st *burrow, burrow_verbose_t verbose, const char
 void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
-  size_t needed;
+  uint32_t needed;
 
   needed = burrow->watch_size + 1;
 
