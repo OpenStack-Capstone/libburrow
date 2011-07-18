@@ -874,7 +874,6 @@ burrow_backend_http_common_getting(void *ptr,
       (command == BURROW_CMD_UPDATE_MESSAGES)) {
     curl_easy_setopt(chandle, CURLOPT_READFUNCTION,
 		     user_buffer_curl_read_nothing_function);
-    curl_easy_setopt(chandle, CURLOPT_READDATA, 4000);
   }
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
