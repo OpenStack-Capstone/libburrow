@@ -26,6 +26,12 @@ struct user_buffer_st {
 
 user_buffer *
 user_buffer_create(user_buffer *buffer, const uint8_t *data) {
+  return user_buffer_create_sized(buffer, data,
+				  data ? strlen((const char *)data) : 0);
+}
+
+user_buffer *
+user_buffer_create_sized(user_buffer *buffer, const uint8_t *data, size_t data_size){
   if (buffer == 0) {
     buffer = (user_buffer *)malloc(sizeof(user_buffer));
   }
@@ -34,11 +40,12 @@ user_buffer_create(user_buffer *buffer, const uint8_t *data) {
     buffer->buf = 0;
     buffer->size = 0;
   } else {
-    buffer->buf = strdup((const char *)data);
-    buffer->size = strlen((const char *)data);
+    buffer->buf = malloc(data_size);
+    memcpy(buffer->buf, data, data_size);
+    buffer->size = data_size;
   }
   return buffer;
-}
+}  
 
 void
 user_buffer_destroy(user_buffer *buffer) {

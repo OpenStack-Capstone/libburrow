@@ -11,6 +11,8 @@
 
 typedef struct user_buffer_st user_buffer;
 
+user_buffer *user_buffer_create_sized(user_buffer *buffer, const uint8_t *data, size_t data_size);
+
 user_buffer *user_buffer_create(user_buffer *buffer, const uint8_t *data);
 
 void user_buffer_destroy(struct user_buffer_st *buffer);
