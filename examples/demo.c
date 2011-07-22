@@ -23,7 +23,7 @@ typedef struct app_state_st
 {
   int error;
   int generator;
-  char *last_msg_id;
+  char last_msg_id[128];
 
   incoming_st *msg;
 } app_state_st;
@@ -100,8 +100,7 @@ static void complete_callback(burrow_st *burrow)
   if (!state->msg)
     return;
 
-  free(state->last_msg_id);
-  state->last_msg_id = strdup(state->msg->id);
+  strncpy(state->last_msg_id, state->msg->id, 128 - 1);
   
   while((incoming = state->msg)) {
     double result = process_equation((char*)incoming->data);
@@ -135,7 +134,7 @@ int main(int argc, char **argv)
   int messages = INT_MAX;
   int maxsleep = 5;
     
-  app_state_st state = { 0, 0, 0, 0 };
+  app_state_st state = { 0, 0, {0}, 0 };
   
   while ((c = getopt(argc, argv, "s:p:a:q:gchve:m:l:")) != -1)
   {
@@ -198,23 +197,23 @@ int main(int argc, char **argv)
   
   burrow_set_context(burrow, &state);
   
-  
-  burrow_attributes_st *attr = burrow_attributes_create(NULL, burrow);
-  if (!attr)
-    FATAL("couldn't allocate attributes\n");
-
   if (state.generator) {
     char buf[1024];
     char uuidbuf[36 + 1];
     uuid_t uuid;
+    burrow_attributes_st *attr = burrow_attributes_create(NULL, burrow);
     
+    if (!attr)
+      FATAL("couldn't allocate attributes\n");
+    burrow_attributes_set_ttl(attr, 5); /* short ttl */
+
     while (messages--) {
-      random_equation(buf, 1024);
-      
       uuid_generate(uuid);
       uuid_unparse(uuid, uuidbuf);
+      random_equation(buf, 1024);
+
       printf("Sending: %s\nExpected value: %f\n", buf, process_equation(buf));
-      burrow_create_message(burrow, account, queue, uuidbuf, (void*)buf, strlen(buf), NULL);
+      burrow_create_message(burrow, account, queue, uuidbuf, (void*)buf, strlen(buf), attr);
       
       if (state.error)
         FATAL("encountered error");
@@ -234,9 +233,15 @@ int main(int argc, char **argv)
       FATAL("couldn't create filters or attributes");
     burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
     while(messages--) {
-      if (state.last_msg_id)
+      if (state.last_msg_id[0])
         burrow_filters_set_marker(filters, state.last_msg_id);
+      else
+        burrow_filters_unset(filters, BURROW_FILTERS_MARKER);
       burrow_get_messages(burrow, account, queue, filters);
+
+      if (state.error)
+        FATAL("encountered error");
+
       if (messages && maxsleep) {
         int sl = rand() % maxsleep;
         if (verbose)
@@ -244,7 +249,6 @@ int main(int argc, char **argv)
         usleep((useconds_t)sl * 10000);
       }
     }
-    free(state.last_msg_id);
   }
   
   burrow_destroy(burrow);
@@ -264,7 +268,7 @@ static void random_equation(char *buf, int size)
     return;
   }
   
-  p += sprintf(buf, "%d", rand() % MAXINT + 1);
+  p += sprintf(buf, "%d", rand() % MAXINT + 1); /* no zeroes! */
   while(p - buf < CUTOFF)
   {
     if (rand() % STOP_CHANCE == 0)
