@@ -396,8 +396,7 @@ static int burrow_backend_http_parse_json(burrow_backend_t *backend,
   config.handle_floats_manually = 0;
   jc = new_JSON_parser(&config);
 
-  jsontext[jsonsize]='\0';
-  fprintf(stderr, "Text: \"%s\"\n\n", jsontext);
+  fprintf(stderr, "Text: \"%.*s\"\n\n", jsonsize, jsontext);
 
   int i;
   for (i = 0; i < (int)jsonsize; ++i) {
@@ -405,16 +404,18 @@ static int burrow_backend_http_parse_json(burrow_backend_t *backend,
     int nextchar = jsontext[i];
     if ((retval = JSON_parser_char(jc, nextchar)) <= 0) {
       fprintf(stderr, "JSON_parser_char returned error (%d) at byte %d (%d = '%c')\n",
-	      retval, i, nextchar, nextchar);
+	      retval, i, (int)nextchar, nextchar);
       //return -1;
     }
   }    
   fprintf(stderr, "Ok, parsed through the entire JSON message\n");
   if (!JSON_parser_done(jc)) {
     fprintf(stderr, "JSON_parser_end: syntax error\n");
+    delete_JSON_parser(jc);
     burrow_easy_json_st_destroy(json_processing);
     return -1;
   }
+  delete_JSON_parser(jc);
   burrow_easy_json_st_destroy(json_processing);
   return 0;
 }
@@ -505,10 +506,8 @@ burrow_backend_http_process(void *ptr) {
     retval =
       curl_multi_fdset(backend->curlptr, &read_fd_set,
 		       &write_fd_set, &exec_fd_set, &max_fd);
-    if (max_fd == -1) {
-      printf("$$$$$: max_xf == -1\n");
+    if (max_fd == -1)
       return BURROW_OK;
-    }
     for (int i = 0; i <= max_fd; ++i) {
       burrow_ioevent_t burrow_event = BURROW_IOEVENT_NONE;
       if (FD_ISSET(i, &read_fd_set))
@@ -563,7 +562,6 @@ burrow_backend_http_process(void *ptr) {
 					   user_buffer_get_size(backend->buffer));
 	
       }
-      printf("$$$$$: returning ok to burrow frontend\n");
     return BURROW_OK;
   }
 }
@@ -853,6 +851,8 @@ burrow_backend_http_common_getting(void *ptr,
   fprintf(stderr, "URL to send is \"%s\"\n", url);
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
+  /* We weren't freeing this -- is this where this free should go? */
+  free(url);
   if ((command == BURROW_CMD_GET_MESSAGES) || (command == BURROW_CMD_GET_MESSAGE)){
     curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
     curl_easy_setopt(chandle, CURLOPT_HTTPGET, 1L);

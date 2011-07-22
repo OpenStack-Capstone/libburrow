@@ -223,7 +223,7 @@ int main(int argc, char **argv)
         int sl = rand() % maxsleep;
         if (verbose)
           printf("info: sleeping for %d seconds\n", sl);
-        usleep((__useconds_t)sl * 10000);
+        usleep((useconds_t)sl * 10000);
       }
     }
     if (verbose)
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
         int sl = rand() % maxsleep;
         if (verbose)
           printf("info: sleeping for %d seconds\n", sl);
-        usleep((__useconds_t)sl * 10000);
+        usleep((useconds_t)sl * 10000);
       }
     }
     free(state.last_msg_id);

@@ -93,17 +93,8 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
   
   if (burrow->watch_size == 0) /* nothing to watch */
     return;
-  burrow_log_debug(burrow, "burrow_internal_poll_fds: watching %u file descriptors, pfds %x, npfds %u", burrow->watch_size, burrow->pfds, burrow->pfds_size);
-  
-  for (count = 0; count < (int)burrow->pfds_size; count++)
-    burrow->pfds[count].revents = 0;
 
-  burrow_log_debug(burrow, "debug: fd %d, event %x, revents %x", burrow->pfds[0].fd, burrow->pfds[0].events, burrow->pfds[0].revents);
   count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
-  burrow_log_debug(burrow, "debug: fd %d, event %x, revents %x", burrow->pfds[0].fd, burrow->pfds[0].events, burrow->pfds[0].revents);
-
-  burrow_log_debug(burrow, "burrow_internal_poll_fds: !! watching %u file descriptors, pfds %x, npfds %u, count %d", burrow->watch_size, burrow->pfds, burrow->pfds_size, count);
-
   if (count == -1) {
     burrow_log_error(burrow, "burrow_internal_poll_fds: poll: error encountered %d", errno);
     return;
@@ -115,13 +106,14 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
     return;
   }
   burrow_log_debug(burrow, "burrow_internal_poll_fds: %d fds with events", count);
+
   pfd = burrow->pfds;
-  
   watch_size = burrow->watch_size;
-  while(count) {
-    burrow_log_debug(burrow, "burrow_internal_poll_fds: step");
+  /* OSX will return one 'count' value per event raised, not per fd;
+     this is a bug in its poll implementation. We work around by simply
+     checking all fds, otherwise ignoring the count retrieved above */
+  while(pfd < (burrow->pfds + watch_size)) {
     if (pfd->revents) { /* Found a live event */
-      burrow_log_debug(burrow, "burrow_internal_poll_fds: fd %d, events %x, revents %x", pfd->fd, pfd->events, pfd->revents);
       
       /* Dispatch it: */
       burrow_ioevent_t event = BURROW_IOEVENT_NONE;      
@@ -132,7 +124,6 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
       burrow_event_raised(burrow, pfd->fd, event);
 
       /* And copy the last pfd to this location */
-      count--;
       watch_size--;
       last_pfd = &burrow->pfds[watch_size];
       
@@ -141,9 +132,6 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
         pfd->fd = last_pfd->fd;
         pfd->events = last_pfd->events;
         pfd->revents = last_pfd->revents;
-        last_pfd->fd = -1;
-        last_pfd->events = -1;
-        last_pfd->revents = -1;
       }
       /* Note that we don't increment pfd here, because this location
          now has new data */
