@@ -56,12 +56,17 @@ void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events
   needed = burrow->watch_size + 1;
 
   if (burrow->pfds_size < needed) {
-    pfd = realloc(burrow->pfds, needed * sizeof(struct pollfd));
+    burrow_log_debug(burrow, "burrow_internal_watch_fd: reallocating pfd structure %u pfd structs", needed);
+    if (burrow->pfds_size > 0)
+      pfd = realloc(burrow->pfds, needed * sizeof(struct pollfd));
+    else
+      pfd = malloc(needed * sizeof(struct pollfd));
     if (!pfd) {
       burrow_log_error(burrow, "burrow_internal_watch_fd: couldn't reallocate pfds struct");
       /* TODO: something more here? how to bubble up this error? */
       return;
     }
+    burrow_log_debug(burrow, "burrow_internal_watch_fd: pfds given address %x", pfd);
     burrow->pfds = pfd;
     burrow->pfds_size = needed;
   }
@@ -75,6 +80,8 @@ void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events
     pfd->events |= POLLIN;
   if (events & BURROW_IOEVENT_WRITE)
     pfd->events |= POLLOUT;
+
+  burrow_log_debug(burrow, "burrow_internal_watch_fd: called fd %d, events %x", fd, pfd->events);
 }
 
 static void burrow_internal_poll_fds(burrow_st *burrow)
@@ -86,8 +93,17 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
   
   if (burrow->watch_size == 0) /* nothing to watch */
     return;
+  burrow_log_debug(burrow, "burrow_internal_poll_fds: watching %u file descriptors, pfds %x, npfds %u", burrow->watch_size, burrow->pfds, burrow->pfds_size);
+  
+  for (count = 0; count < (int)burrow->pfds_size; count++)
+    burrow->pfds[count].revents = 0;
 
+  burrow_log_debug(burrow, "debug: fd %d, event %x, revents %x", burrow->pfds[0].fd, burrow->pfds[0].events, burrow->pfds[0].revents);
   count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
+  burrow_log_debug(burrow, "debug: fd %d, event %x, revents %x", burrow->pfds[0].fd, burrow->pfds[0].events, burrow->pfds[0].revents);
+
+  burrow_log_debug(burrow, "burrow_internal_poll_fds: !! watching %u file descriptors, pfds %x, npfds %u, count %d", burrow->watch_size, burrow->pfds, burrow->pfds_size, count);
+
   if (count == -1) {
     burrow_log_error(burrow, "burrow_internal_poll_fds: poll: error encountered %d", errno);
     return;
@@ -98,11 +114,14 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
     burrow_cancel(burrow);
     return;
   }
+  burrow_log_debug(burrow, "burrow_internal_poll_fds: %d fds with events", count);
   pfd = burrow->pfds;
   
   watch_size = burrow->watch_size;
   while(count) {
+    burrow_log_debug(burrow, "burrow_internal_poll_fds: step");
     if (pfd->revents) { /* Found a live event */
+      burrow_log_debug(burrow, "burrow_internal_poll_fds: fd %d, events %x, revents %x", pfd->fd, pfd->events, pfd->revents);
       
       /* Dispatch it: */
       burrow_ioevent_t event = BURROW_IOEVENT_NONE;      
@@ -122,6 +141,9 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
         pfd->fd = last_pfd->fd;
         pfd->events = last_pfd->events;
         pfd->revents = last_pfd->revents;
+        last_pfd->fd = -1;
+        last_pfd->events = -1;
+        last_pfd->revents = -1;
       }
       /* Note that we don't increment pfd here, because this location
          now has new data */
@@ -137,8 +159,10 @@ burrow_result_t burrow_process(burrow_st *burrow)
 {
   burrow_result_t result = BURROW_OK_WAITING;
 
-  if (burrow->flags & BURROW_FLAG_PROCESSING) /* prevent recursion */
+  if (burrow->flags & BURROW_FLAG_PROCESSING) {/* prevent recursion */
+    burrow_log_debug(burrow, "burrow_process: not recurring");
     return BURROW_OK_WAITING; /* parent process loop will pick it up */
+  }
 
   burrow->flags |= BURROW_FLAG_PROCESSING;
 
@@ -146,6 +170,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
     switch(burrow->state) {
     
     case BURROW_STATE_START: /* command is initialized, but hasn't kicked off */
+      burrow_log_debug(burrow, "burrow_process: state start: kicking off command");
       result = burrow->cmd.command_fn(burrow->backend_context, &burrow->cmd);
       if (result == BURROW_OK_WAITING)
         burrow->state = BURROW_STATE_WAITING;
@@ -154,6 +179,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
       break;
 
     case BURROW_STATE_READY: /* io events have made the backend ready */
+      burrow_log_debug(burrow, "burrow_process: state ready: processing");
       result = burrow->backend->process(burrow->backend_context);
       if (result == BURROW_OK_WAITING)
         burrow->state = BURROW_STATE_WAITING;
@@ -166,10 +192,14 @@ burrow_result_t burrow_process(burrow_st *burrow)
         return BURROW_OK_WAITING; /* waiting is performed by the client */
       
       /* TODO: what if this returns for timeout or error? */
+      burrow_log_debug(burrow, "burrow_process: state waiting -- internally polling");
       burrow_internal_poll_fds(burrow); /* this should unblock the io */
       break;
 
     case BURROW_STATE_FINISH: /* backend is done */
+      burrow_log_debug(burrow, "burrow_process: state finish: idle and complete");
+      if (burrow->watch_size > 0)
+        burrow_log_error(burrow, "in finish state while still waiting for fds");
       burrow->state = BURROW_STATE_IDLE; /* we now accept new commands */
       burrow->cmd.command = BURROW_CMD_NONE;
       /* Note: this could update burrow state by calling a command again: */
@@ -191,6 +221,8 @@ burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t 
 {
   burrow_result_t result;
   
+  burrow_log_debug(burrow, "burrow_event_raised: fd: %d, event %x", fd, event);
+  
   if (!burrow->backend->event_raised) {
     burrow_log_warn(burrow, "burrow_event_raised: event raised but not no handler defined");
     return BURROW_ERROR_UNSUPPORTED;
@@ -202,6 +234,7 @@ burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t 
   result = burrow->backend->event_raised(burrow->backend_context, fd, event);
   
   if (result == BURROW_OK) {
+    burrow_log_debug(burrow, "burrow_event_raised: BURROW_OK returned, state to ready");
     burrow->state = BURROW_STATE_READY;
     if (burrow->options & BURROW_OPT_AUTOPROCESS)
       return burrow_process(burrow);
@@ -266,7 +299,7 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   burrow->pfds = NULL;
   burrow->pfds_size = 0;
   burrow->watch_size = 0;
-  burrow->timeout = 60;
+  burrow->timeout = 10 * 1000; /* ten seconds */
   
   burrow->attributes_list = NULL;
   burrow->filters_list = NULL;

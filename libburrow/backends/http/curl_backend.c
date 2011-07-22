@@ -505,8 +505,10 @@ burrow_backend_http_process(void *ptr) {
     retval =
       curl_multi_fdset(backend->curlptr, &read_fd_set,
 		       &write_fd_set, &exec_fd_set, &max_fd);
-    if (max_fd == -1)
+    if (max_fd == -1) {
+      printf("$$$$$: max_xf == -1\n");
       return BURROW_OK;
+    }
     for (int i = 0; i <= max_fd; ++i) {
       burrow_ioevent_t burrow_event = BURROW_IOEVENT_NONE;
       if (FD_ISSET(i, &read_fd_set))
@@ -561,7 +563,7 @@ burrow_backend_http_process(void *ptr) {
 					   user_buffer_get_size(backend->buffer));
 	
       }
-    
+      printf("$$$$$: returning ok to burrow frontend\n");
     return BURROW_OK;
   }
 }
