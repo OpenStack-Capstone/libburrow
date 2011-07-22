@@ -129,7 +129,7 @@ int main(int argc, char **argv)
   const char *port = "8080";
   const char *account = getlogin();
   const char *queue = "demo";
-  char c;
+  int c;
   int verbose = 0;
   int seed = (int)time(NULL);
   int messages = INT_MAX;
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
     }
   }
   
-  srand(seed);
+  srand((unsigned int)seed);
   if (verbose > 1)
     printf("info: using random seed %d", seed);
 
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
         int sl = rand() % maxsleep;
         if (verbose)
           printf("info: sleeping for %d seconds\n", sl);
-        usleep(sl * 10000);
+        usleep((__useconds_t)sl * 10000);
       }
     }
     if (verbose)
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
         int sl = rand() % maxsleep;
         if (verbose)
           printf("info: sleeping for %d seconds\n", sl);
-        usleep(sl * 10000);
+        usleep((__useconds_t)sl * 10000);
       }
     }
     free(state.last_msg_id);
@@ -269,7 +269,7 @@ static void random_equation(char *buf, int size)
   {
     if (rand() % STOP_CHANCE == 0)
       break;
-    char op = rand() % 4;
+    char op = (char)(rand() % 4);
     
     switch(op)
     {
@@ -299,7 +299,6 @@ static double process_equation(const char *buf)
   const char *p = buf;
   
   if (sscanf(p, "%d%n", &intval, &count) <= 0) {
-    printf("bad scan 1\n");
     return NAN;
   }
   p += count;
@@ -310,7 +309,6 @@ static double process_equation(const char *buf)
     ++p;
     
     if (sscanf(p, "%d%n", &intval, &count) <= 0) {
-      printf("bad scan 2\n");
       return NAN;      
     }
     
@@ -330,7 +328,6 @@ static double process_equation(const char *buf)
         value -= intval;
         break;
       default:
-        printf("bad op\n");
         return NAN;
     }
   }
