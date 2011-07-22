@@ -9,11 +9,11 @@
 #
 
 ACLOCAL_AMFLAGS = -I m4
-LDADD = libburrow.la ${LTLIBCURL}
+LDADD = libburrow.la ${LTLIBCURL} ${LTLIBUUID}
 
 bin_PROGRAMS =
 lib_LTLIBRARIES =
-noinst_LTLIBRARIES =
+noinst_LTLIBRARIES = 
 nobase_include_HEADERS =
 pkgplugin_LTLIBRARIES =
 CLEANFILES =
@@ -22,7 +22,8 @@ DISTCLEANFILES = \
   config/top.h
 
 noinst_PROGRAMS = \
-  examples/complete_loop
+  examples/complete_loop \
+  examples/demo
 
 EXTRA_DIST = \
   docs/doxygen/Doxyfile \
