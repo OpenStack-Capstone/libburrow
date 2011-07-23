@@ -34,15 +34,6 @@ do { \
   exit(1); \
 } while(0);
 
-
-#define FATALF(msg, ...) \
-  do { \
-    fprintf(stderr, "FATAL: " ); \
-    fprintf(stderr, msg, __VA_ARGS__); \
-    fprintf(stderr, "\n"); \
-    exit(1); \
-  } while(0);
-
 static void random_equation(char *buf, int size);
 static double process_equation(const char *buf);
 
@@ -55,8 +46,8 @@ static void print_help(const char *invocation)
          "\t-a <account>      - Specify the account; default: current login name\n"
          "\t-q <queue>        - Specify the queue; default: 'demu'\n"
          "\t-e <seed>         - Specify random seed for message generator\n"
-         "\t-m <count>        - Specify number of messages to act upon, 0 unlimited\n"
-         "\t-l <count>        - Specify maximum sleep between actions\n"
+         "\t-r <count>        - Specify number requests to generate, 0 unlimited\n"
+         "\t-l <count>        - Specify maximum sleep (in 1/100s) between actions, def 25\n"
          "\t-g                - Act as a generator, exclusive with:\n"
          "\t-c                - Act as a consumer (default)\n"
          "\t-v                - Be verbose\n",
@@ -131,12 +122,13 @@ int main(int argc, char **argv)
   int c;
   int verbose = 0;
   int seed = (int)time(NULL);
-  int messages = INT_MAX;
-  int maxsleep = 5;
+  int messages = 0;
+  int endless = 0;
+  int maxsleep = 25;
     
   app_state_st state = { 0, 0, {0}, 0 };
   
-  while ((c = getopt(argc, argv, "s:p:a:q:gchve:m:l:")) != -1)
+  while ((c = getopt(argc, argv, "s:p:a:q:gchve:r:l:")) != -1)
   {
     switch(c) {
     case 'v':
@@ -163,11 +155,12 @@ int main(int argc, char **argv)
     case 'e':
       seed = atoi(optarg);
       break;
-    case 'm':
-      messages = atoi(optarg);
+    case 'r':
+      messages = atoi(optarg) + 1;
+      
       break;
     case 'l':
-      maxsleep = atoi(optarg);
+      maxsleep = atoi(optarg); /* hundredths of a second */
       break;
     default:
     case 'h':
@@ -179,6 +172,9 @@ int main(int argc, char **argv)
   srand((unsigned int)seed);
   if (verbose > 1)
     printf("info: using random seed %d", seed);
+  
+  if (!messages)
+    endless = 1;
 
   burrow_st *burrow;
   
@@ -207,7 +203,7 @@ int main(int argc, char **argv)
       FATAL("couldn't allocate attributes\n");
     burrow_attributes_set_ttl(attr, 5); /* short ttl */
 
-    while (messages--) {
+    while (endless || messages--) {
       uuid_generate(uuid);
       uuid_unparse(uuid, uuidbuf);
       random_equation(buf, 1024);
@@ -218,10 +214,10 @@ int main(int argc, char **argv)
       if (state.error)
         FATAL("encountered error");
     
-      if (messages && maxsleep) {
+      if (maxsleep && (messages || endless)) {
         int sl = rand() % maxsleep;
         if (verbose)
-          printf("info: sleeping for %d seconds\n", sl);
+          printf("info: sleeping for %d hundredths of a second\n", sl);
         usleep((useconds_t)sl * 10000);
       }
     }
@@ -229,10 +225,13 @@ int main(int argc, char **argv)
       printf("info: done sending messages\n");
   } else { /* Consumer */
     burrow_filters_st *filters = burrow_filters_create(NULL, burrow);
+    
     if (!filters)
       FATAL("couldn't create filters or attributes");
+      
     burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
-    while(messages--) {
+    
+    while (endless || messages--) {
       if (state.last_msg_id[0])
         burrow_filters_set_marker(filters, state.last_msg_id);
       else
@@ -242,13 +241,15 @@ int main(int argc, char **argv)
       if (state.error)
         FATAL("encountered error");
 
-      if (messages && maxsleep) {
+      if (maxsleep && (messages || endless)) {
         int sl = rand() % maxsleep;
         if (verbose)
-          printf("info: sleeping for %d seconds\n", sl);
+          printf("info: sleeping for %d hundredths of a second\n", sl);
         usleep((useconds_t)sl * 10000);
       }
     }
+    if (verbose)
+      printf("info: done receiving messages\n");
   }
   
   burrow_destroy(burrow);
