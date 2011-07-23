@@ -1,19 +1,18 @@
-***************************************************************************
-*  PROJECT:  memory backend for libburrow C client API.
-*
-*  AUTHOR:   Federico Saldarini - TEAM C - Capstone Team D
-*  NOTE:     This should be considered a rough sketch at this point. 
-*            Super cheap O(n) implementation.
-***************************************************************************
 
-This will eventually become the official memory backend for the C client API. Right now, it's merely a half-functional sketch.
-
-Issues still to resolve:
-------------------------
-1. format to return messages (call-back, struct, implicit,etc..)
-2. subtle behavior of "iterator" of sorts.
-3. whether there is a need for a more efficient internal storage structure ( aka < O(a+q+m) )
-4. go for robustness = return NULL whenever something goes wrong?
- 
+/*************************************************************************
+ * libburrow -- Memory Backend
+ *
+ * Copyright (C) 2011 Federico G. Saldarini (saldavonschwartz@gmail.com)
+ * All rights reserved. 
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in this directory for full text.
+ *************************************************************************
 
 
+TODO:
+----
+
+* add error-logging code.
+* refactoring here and there?
+* ?...

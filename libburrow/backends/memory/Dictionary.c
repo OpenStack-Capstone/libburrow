@@ -1,15 +1,13 @@
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//  PROJECT:  memory backend for libburrow C client API.
-//            main dictionary "class" for accounts, queues and messages internal to the backend.
-//
-//  AUTHOR:   Federico Saldarini
-//  
-//  NOTE:     This should be considered a rough sketch at this point. 
-//            Super cheap O(n) implementation.
-//  
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/***********************************************************************************************************************
+ * libburrow -- Memory Backend internal dictionary / associative array structure.
+ *              
+ *
+ * Copyright (C) 2011 Federico G. Saldarini (saldavonschwartz@gmail.com)
+ * All rights reserved. 
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in this directory for full text.
+ **********************************************************************************************************************/
 
 
 #include <stdlib.h>
@@ -19,46 +17,20 @@
 #define DICTIONARY_H
 
 
-//  EXTERNAL: only here right now for testing!! ////////////////////////////////////////////////////////////////////////
+/*********************************************************************************************************************/
+/*********************************************************************************************************************/
 
-/* Public */
-typedef enum {
-  BURROW_DETAIL_UNSET,
-  BURROW_DETAIL_NONE,
-  BURROW_DETAIL_ID,
-  BURROW_DETAIL_ATTRIBUTES,
-  BURROW_DETAIL_BODY,
-  BURROW_DETAIL_ALL
-} burrow_detail_t;
+#define DICTIONARY_LENGTH -1
 
-typedef enum {
-  BURROW_MAYBE = -1,
-  BURROW_FALSE = 0,
-  BURROW_TRUE = 1
-} burrow_tribool_t;
-
-typedef struct {
-  int32_t ttl; /* -1: not set */
-  int32_t hide; /* -1: not set */
-} burrow_attributes_st;
-
-/* Existence public, internals not */
-typedef struct {
-  burrow_tribool_t match_hidden; /* MAYBE -- not set */
-  int32_t limit; /* -1, not set */
-  char *marker;  /* NULL, not set */
-  burrow_detail_t detail; /* BURROW_DETAIL_UNSET -- not set */
-  int32_t wait;
-} burrow_filters_st;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+typedef enum action_t {UPDATE, GET, DELETE, SEARCH, CREATE, REPORT, IGNORE} action_t;
 
 typedef struct dictionary_node_st 
 {
   char* key;
   struct dictionary_node_st* previous;
   struct dictionary_node_st* next;
-  void* value;
+  void* data;
+  
 } dictionary_node_st;
 
 
@@ -67,168 +39,162 @@ typedef struct
   dictionary_node_st* first;
   dictionary_node_st* last;
   int length;
+  burrow_st* burrow;
+  
 } dictionary_st;
 
-
-dictionary_st* init(dictionary_st* this)
+/*********************************************************************************************************************/
+/*********************************************************************************************************************/
+dictionary_st* init(dictionary_st* self, burrow_st* burrow)
 {
-  this = malloc(sizeof(dictionary_st));
-  this->first = this->last = NULL;
-  this->length = 0;
+  self = burrow_malloc(burrow, sizeof(dictionary_st));
+  self->first = self->last = NULL;
+  self->length = 0;
+  self->burrow = burrow;
+  return self;
+}
+/*********************************************************************************************************************/
+int length(dictionary_st* self)
+{
+  if(!self)
+    return -1;
   
-  return this;
+  return self->length;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int length(dictionary_st* this)
+/*********************************************************************************************************************/
+void print(dictionary_st* self)
 {
-  return this->length;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void print(dictionary_st* this)
-{
-  dictionary_node_st* current_node = this->first;
+  if(!self)
+    return;
+  
+  dictionary_node_st* current_node = self->first;
   
   int i;
-  for(i = 0; i < this->length; i++)
+  for(i = 0; i < self->length; i++)
   {
-    printf("\n index: %i key: %s content %s", i, current_node->key, (char*)current_node->value);
+    printf("\n index: %i key: %s content %s", i, current_node->key, (char*)current_node->data);
     if(current_node->next != NULL)
       current_node = current_node->next;
   }
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-dictionary_node_st* get(dictionary_st* this, char* key)
+/*********************************************************************************************************************/
+dictionary_node_st* add(dictionary_st* self, const char* key, void* data_pointer)
 {
-  if(!(this->length))
+  if(!self)
     return NULL;
-
-  dictionary_node_st* current_node = this->first;
+  
+  dictionary_node_st* new_node = burrow_malloc(self->burrow, sizeof(dictionary_node_st));
+  new_node->key = burrow_malloc(self->burrow, strlen(key)+1);
+  strcpy(new_node->key, key);
+  new_node->previous = self->last;
+    
+  if(self->last != NULL) 
+    self->last->next = new_node;
+    
+  self->last = new_node;
+    
+  if(self->first == NULL)
+    self->first = new_node;
+    
+  new_node->next = NULL;
+  new_node->data = data_pointer;
+  
+  self->length++;
+  
+  return new_node;
+}
+/*********************************************************************************************************************/
+dictionary_node_st* get(dictionary_st* self, const char* key, action_t default_action)
+{
+  if(!key || !self)
+    return NULL;
+  
+  dictionary_node_st* current_node = self->first;
   
   int i = 0;
-  while((i < this->length) && ++i)
+  while((i < self->length) && ++i)
     if(!strcmp(current_node->key, key))
       break;
     else
       current_node = current_node->next;
-
+  
+  if(!current_node && default_action == CREATE)
+  {
+    dictionary_node_st* temp = add(self, key, NULL);
+    dictionary_st* messages = init(messages, self->burrow);
+    temp->data = messages;
+    current_node = temp;
+  }
+     
   return current_node;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void add(dictionary_st* this, char* key, void* data_pointer)
+/*********************************************************************************************************************/
+dictionary_st* iter(dictionary_st* self, const char* l_bound_key, int32_t u_bound)
 {
-  dictionary_node_st* new_node = get(this, key);
+  if(!self)
+    return NULL;
   
-  if(new_node == NULL)
-  {
-    new_node = malloc(sizeof(dictionary_node_st));
-    new_node->key = key;
-    new_node->previous = this->last;
-    
-    if(this->last != NULL) 
-      this->last->next = new_node;
-    
-    this->last = new_node;
-    
-    if(this->first == NULL)
-      this->first = new_node;
-    
-    new_node->next = NULL;
-    
-    this->length++;
-  }
-  
-  new_node->value = data_pointer;  
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-dictionary_st* iter(dictionary_st* this, burrow_filters_st* filters)
-{
-  dictionary_st* dictionary = init(dictionary);
+  dictionary_st* dictionary = init(dictionary, self->burrow);
   dictionary_node_st* current_node;
-  int32_t limit = filters->limit;
+    
+  if(!(current_node = get(self, l_bound_key, SEARCH)))
+    current_node = self->first;
   
-  if((current_node = get(this, filters->marker)) == NULL)
-    current_node = this->first;
+  if(u_bound == DICTIONARY_LENGTH)
+    u_bound = self->length;
   
-  while((current_node != NULL) && limit)
+  while(current_node && u_bound)
   {
-    add(dictionary, current_node->key, current_node->value);
+    add(dictionary, current_node->key, current_node->data);
     current_node = current_node->next;
-    limit--;
+    u_bound--;
   }
   
   return dictionary;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void delete_node(dictionary_st* this, char* key)
+/*********************************************************************************************************************/
+void delete_node(dictionary_st* self, const char* key)
 {
-  dictionary_node_st* current_node = get(this, key);
-  
-  if(current_node == NULL)
+  if(!self)
     return;
   
+  dictionary_node_st* current_node;
+  
+  if(!(current_node = get(self, key, SEARCH)))
+    return;
   
   if(current_node->previous != NULL)
     current_node->previous->next = current_node->next;
   else
-    this->first = current_node->next;
+    self->first = current_node->next;
   
   if(current_node->next != NULL)
     current_node->next->previous = current_node->previous;
   else
-    this->last = current_node->previous;
+    self->last = current_node->previous;
   
-  free(current_node);
-  this->length--;
+  burrow_free(self->burrow, current_node);
+  current_node = NULL;
+  self->length--;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void delete(dictionary_st* this, burrow_filters_st* filters)
+/*********************************************************************************************************************/
+void delete(dictionary_st* self, const char* l_bound_key, int32_t u_bound)
 {
-  if(!this->length)
+  if(!self || !self->length)
     return;
   
-  if(filters == NULL)
-  {
-    dictionary_node_st* next_node;
-    dictionary_node_st* current_node = this->first;
-    
-    int i;
-    for(i = 0; i < this->length; i++)
-    {
-      next_node = current_node->next;
-      free(current_node);
-      this->length--;
-    }
+  dictionary_node_st* current_node;
+  dictionary_node_st* next_node;
   
-    return;
-  }
-  
-  dictionary_st* key_iterator = iter(this, filters);
-  dictionary_node_st* keyed_iteration = key_iterator->first;
-  int i;
-  for(i = 0; i < key_iterator->length; i++)
-  {
-    delete_node(this, keyed_iteration->key);
-    keyed_iteration = keyed_iteration->next;
-  }
-  
-  delete(key_iterator, NULL);
-  free(key_iterator);
+  if(!(current_node = get(self, l_bound_key, SEARCH)))
+    current_node = self->first;
 
+  while(current_node && u_bound)
+  {
+    next_node = current_node->next;
+    delete_node(self, current_node->key);
+    u_bound--;
+  }
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*********************************************************************************************************************/
 #endif
