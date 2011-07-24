@@ -114,7 +114,6 @@ void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id
   /* TODO: if copy strings is implemented, we need to copy the user input */
   /* Special case: if the user passes in NULL, we treat it as an unset command */
   if (marker_id == NULL) {
-    filters->marker = NULL;
     burrow_filters_unset(filters, BURROW_FILTERS_MARKER);
     return;
   }
