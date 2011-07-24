@@ -215,7 +215,7 @@ int main(int argc, char **argv)
   burrow_process(burrow);
   
   printf("Ok, now let us delete one message\n");
-  burrow_filters_free(filters);
+  burrow_filters_destroy(filters);
   filters = burrow_filters_create(0,0);
   burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
   burrow_delete_message(burrow, client.account, client.queue, client.messages->msg_id,

@@ -287,11 +287,11 @@ void burrow_destroy(burrow_st *burrow)
 
   burrow_log_debug(burrow, "burrow_destroy: attributes list %c= NULL", (burrow->attributes_list == NULL ? '=' : '!')); 
   while (burrow->attributes_list != NULL)
-    burrow_attributes_free(burrow->attributes_list);
+    burrow_attributes_destroy(burrow->attributes_list);
 
   burrow_log_debug(burrow, "burrow_destroy: filters list %c= NULL", (burrow->filters_list == NULL ? '=' : '!')); 
   while (burrow->filters_list != NULL)
-    burrow_filters_free(burrow->filters_list);
+    burrow_filters_destroy(burrow->filters_list);
 
   if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
     burrow_log_debug(burrow, "burrow_destroy: freeing self-allocated structure"); 

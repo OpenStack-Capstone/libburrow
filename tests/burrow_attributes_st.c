@@ -72,8 +72,8 @@ int main(void)
     burrow_test_error("hide not copied");
 
 
-  burrow_test("burrow_attributes_free");
-  burrow_attributes_free(attr);
+  burrow_test("burrow_attributes_destroy");
+  burrow_attributes_destroy(attr);
   
   burrow_test("burrow_destroy");
   burrow_destroy(burrow);
@@ -93,9 +93,9 @@ int main(void)
   if (!attr || !attr2 || !attr3 || !attr4 || !attr5)
     burrow_test_error("returned NULL");
   
-  burrow_attributes_free(attr); /* head */
-  burrow_attributes_free(attr3); /* middle */
-  burrow_attributes_free(attr5); /* end */
+  burrow_attributes_destroy(attr); /* head */
+  burrow_attributes_destroy(attr3); /* middle */
+  burrow_attributes_destroy(attr5); /* end */
   
   burrow_test("burrow_destroy managed");
   burrow_destroy(burrow);

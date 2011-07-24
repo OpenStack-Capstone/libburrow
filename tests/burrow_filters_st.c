@@ -83,8 +83,8 @@ int main(void)
   if ((detail = burrow_filters_get_detail(filter)) != BURROW_DETAIL_ATTRIBUTES)
     burrow_test_error("expeted %d, got %d", (int)BURROW_DETAIL_ATTRIBUTES, (int)detail);
 
-  burrow_test("burrow_filters_free");
-  burrow_filters_free(filter);
+  burrow_test("burrow_filters_destroy");
+  burrow_filters_destroy(filter);
   
   burrow_test("burrow_destroy");
   burrow_destroy(burrow);
@@ -115,9 +115,9 @@ int main(void)
   if (!attr || !attr2 || !attr3 || !attr4 || !attr5)
     burrow_test_error("returned NULL");
   
-  burrow_filters_free(attr); /* head */
-  burrow_filters_free(attr3); /* middle */
-  burrow_filters_free(attr5); /* end */
+  burrow_filters_destroy(attr); /* head */
+  burrow_filters_destroy(attr3); /* middle */
+  burrow_filters_destroy(attr5); /* end */
   
   burrow_test("burrow_destroy managed");
   burrow_destroy(burrow);

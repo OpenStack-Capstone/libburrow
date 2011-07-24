@@ -32,7 +32,7 @@ BURROW_API
 burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const burrow_attributes_st *src);
 
 BURROW_API
-void burrow_attributes_free(burrow_attributes_st *attributes);
+void burrow_attributes_destroy(burrow_attributes_st *attributes);
 
 BURROW_API
 void burrow_attributes_unset(burrow_attributes_st *attributes, burrow_attributes_set_t set);

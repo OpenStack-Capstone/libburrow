@@ -72,7 +72,7 @@ burrow_filters_st *burrow_filters_clone(burrow_filters_st *dest, const burrow_fi
   return dest;
 }
 
-void burrow_filters_free(burrow_filters_st *filters)
+void burrow_filters_destroy(burrow_filters_st *filters)
 {
   /* TODO: if copy strings is implemented, we need to free marker */
   if (filters->burrow != NULL) { 
@@ -112,6 +112,12 @@ void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidd
 void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id)
 {
   /* TODO: if copy strings is implemented, we need to copy the user input */
+  /* Special case: if the user passes in NULL, we treat it as an unset command */
+  if (marker_id == NULL) {
+    filters->marker = NULL;
+    burrow_filters_unset(filters, BURROW_FILTERS_MARKER);
+    return;
+  }
   filters->marker = marker_id;
   filters->set |= BURROW_FILTERS_MARKER;
 }

@@ -65,7 +65,7 @@ burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const 
   return dest;
 }
 
-void burrow_attributes_free(burrow_attributes_st *attributes)
+void burrow_attributes_destroy(burrow_attributes_st *attributes)
 {
   if (attributes->burrow != NULL) { 
     if (attributes->next != attributes) { /* a managed attribute object */
