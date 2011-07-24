@@ -9,7 +9,7 @@
 #
 
 ACLOCAL_AMFLAGS = -I m4
-LDADD = libburrow.la ${LTLIBCURL} ${LTLIBUUID}
+LDADD = libburrow.la ${LTLIBCURL}
 
 bin_PROGRAMS =
 lib_LTLIBRARIES =
@@ -22,8 +22,12 @@ DISTCLEANFILES = \
   config/top.h
 
 noinst_PROGRAMS = \
-  examples/complete_loop \
-  examples/demo
+  examples/complete_loop
+
+if HAVE_LIBUUID
+  noinst_PROGRAMS += examples/demo
+  examples_demo_LDFLAGS= ${LTLIBUUID}
+endif
 
 EXTRA_DIST = \
   docs/doxygen/Doxyfile \
