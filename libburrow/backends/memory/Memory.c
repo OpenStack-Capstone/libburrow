@@ -14,6 +14,7 @@
  */
 
 #include <libburrow/common.h>
+//#include "onefile.h"
 #include "dictionary.c"
 #include <time.h>
 
@@ -105,7 +106,6 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
   }
   
   iterator = iter(queue->data, ref_filters->marker, ref_filters->limit);
-  burrow_free(self->burrow, ref_filters);
   item = iterator->first;
   
   int i;
@@ -131,7 +131,14 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
         reference_attributes.hide = (message->hide > 0) ? (message->hide - time(NULL)) : 0;
         reference_attributes.set |= BURROW_ATTRIBUTES_TTL | BURROW_ATTRIBUTES_HIDE;
         
-        burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &reference_attributes);
+        burrow_callback_message
+        (
+          self->burrow, 
+          message->message_id, 
+          message->body, 
+          message->body_size, 
+          &reference_attributes
+        );
         
         break;
         
@@ -144,7 +151,14 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
           reference_attributes.hide = (message->hide > 0) ? (message->hide - time(NULL)) : 0;
           reference_attributes.set |= BURROW_ATTRIBUTES_TTL | BURROW_ATTRIBUTES_HIDE;
         
-          burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &reference_attributes);
+          burrow_callback_message
+          (
+            self->burrow, 
+            message->message_id, 
+            message->body, 
+            message->body_size, 
+            &reference_attributes
+          );
         }
         
         burrow_free(self->burrow, message);
@@ -157,6 +171,7 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
   
   delete(iterator, NULL, iterator->length);
   burrow_free(self->burrow, iterator);
+  burrow_free(self->burrow, ref_filters);
   
   if(!((dictionary_st*)(queue->data))->length)
     delete_node(get(self->accounts, account_key, SEARCH)->data, queue->key);
@@ -217,8 +232,8 @@ static burrow_result_t burrow_backend_memory_delete_queues(void* ptr, const burr
   burrow_free(self->burrow, (burrow_filters_st*)erase_cmd->filters);
   burrow_free(self->burrow, erase_cmd);
   
-  account_st* account = get(self->accounts, cmd->account, SEARCH);
-  if(!account)
+  dictionary_st* account = get(self->accounts, cmd->account, SEARCH)->data;
+  if(!account->length)
     delete_node(self->accounts, cmd->account);
   
   return BURROW_OK;
@@ -249,7 +264,6 @@ static burrow_result_t burrow_backend_memory_delete_accounts(void* ptr, const bu
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   burrow_filters_st* ref_filters = _process_filter(self, cmd->filters);
   dictionary_st* iterator = iter(self->accounts, ref_filters->marker, ref_filters->limit);
-  burrow_free(self->burrow, ref_filters);
   dictionary_node_st* item = iterator->first;
   burrow_command_st* erase_cmd = burrow_malloc(self->burrow, sizeof(burrow_command_st)); 
   erase_cmd->filters = _process_filter(self, NULL);
