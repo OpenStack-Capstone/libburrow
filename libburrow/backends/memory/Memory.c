@@ -112,6 +112,14 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
   for(i=0; i < iterator->length; i++)
   {
     message = item->data;
+    if(message->ttl <= current_time)
+    {
+      delete_node(queue->data, item->key);
+      burrow_free(self->burrow, message);
+      item = item->next;
+      continue;
+    }
+    
     if(!ref_filters->match_hidden && message->hide)
     {
       item = item->next;
@@ -384,6 +392,19 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
       if((message_node = get(queue->data, cmd->message_id, SEARCH)))
         if((message = message_node->data))
         {
+          /*  Careful here: pulled a copy/paste from get_message...*/
+          if(message->ttl <= current_time)
+          {
+            burrow_free(self->burrow, message);
+            delete_node(queue->data, cmd->message_id);
+            dictionary_st* q = queue->data;
+            
+            if(!q->length)
+              delete_node(q, cmd->queue);
+            
+            return BURROW_OK;
+          }
+
           if(attributes_ttl)
             message->ttl = attributes_ttl;
           
@@ -414,15 +435,25 @@ static burrow_result_t burrow_backend_memory_get_message(void *ptr, const burrow
       if((message_node = get(queue->data, cmd->message_id, SEARCH)))
         if((message = message_node->data))
         {
+          time_t current_time = time(NULL);
+          if(message->ttl <= current_time)
+          {
+            burrow_free(self->burrow, message);
+            delete_node(queue->data, cmd->message_id);
+            dictionary_st* q = queue->data;
+            
+            if(!q->length)
+              delete_node(q, cmd->queue);
+            
+            return BURROW_OK;
+          }
+          
+          if((message->hide > current_time))
+            return BURROW_OK;
+          
           burrow_attributes_st attributes;
-          attributes.ttl = message->ttl;
-          attributes.hide = message->hide;
-          
-          if(attributes.ttl > 0)
-            attributes.ttl -= time(NULL);
-          
-          if(attributes.hide > 0)
-            attributes.hide -= time(NULL);
+          attributes.ttl = message->ttl - current_time;
+          attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
           
           burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
           return BURROW_OK;
@@ -443,28 +474,27 @@ static burrow_result_t burrow_backend_memory_delete_message(void *ptr, const bur
       if((message = get(queue, cmd->message_id, SEARCH)->data))
         if(message)
         {
-          burrow_attributes_st attributes;
-          attributes.ttl = message->ttl;
-          attributes.hide = message->hide;
-          
-          if(attributes.ttl > 0)
-            attributes.ttl -= time(NULL);
-          
-          if(attributes.hide > 0)
-            attributes.hide -= time(NULL);
-          
-          burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
+          time_t current_time = time(NULL);
+          if(message->ttl > current_time)
+            if(message->hide > current_time)
+              return BURROW_OK;
+            else
+            {
+              burrow_attributes_st attributes;
+              attributes.ttl = message->ttl - current_time;
+              attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
+              
+              burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
+            }
           
           burrow_free(self->burrow, message);
           delete_node(queue, cmd->message_id);
           
           if(!queue->length)
             delete_node(queues, cmd->queue);
-          
-          return BURROW_OK;
         }
   
-  return BURROW_ERROR_INTERNAL;
+  return BURROW_OK;
 }
 /*********************************************************************************************************************/
 static size_t burrow_backend_memory_size(void)
