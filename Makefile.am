@@ -54,6 +54,7 @@ libburrow_la_SOURCES = \
 	libburrow/backends.c \
 	libburrow/backends/http/curl_backend.c \
 	libburrow/backends/http/user_buffer.c \
+	libburrow/backends/http/json_processing.c \
 	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c
 
 
@@ -73,8 +74,9 @@ noinst_HEADERS = \
 	libburrow/macros.h \
 	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h \
 	libburrow/backends/http/curl_backend.h \
-	libburrow/backends/dummy/dummy.h \
 	libburrow/backends/http/user_buffer.h \
+	libburrow/backends/http/json_processing.h \
+	libburrow/backends/dummy/dummy.h \
 	tests/common.h
 
 libburrow_la_CFLAGS = \
