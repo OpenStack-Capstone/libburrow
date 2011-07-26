@@ -86,7 +86,7 @@ void burrow_attributes_destroy(burrow_attributes_st *attributes)
 
 void burrow_attributes_unset(burrow_attributes_st *attributes, burrow_attributes_set_t set)
 {
-  attributes->set = set;
+  attributes->set &= ~set;
 }
 
 bool burrow_attributes_check(const burrow_attributes_st *attributes, burrow_attributes_set_t set)

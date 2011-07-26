@@ -95,7 +95,7 @@ void burrow_filters_destroy(burrow_filters_st *filters)
 void burrow_filters_unset(burrow_filters_st *filters, burrow_filters_set_t set)
 {
   /* TODO: if copystrings, then we need to dealloc our marker */
-  filters->set = set;
+  filters->set &= ~set;
 }
 
 bool burrow_filters_check(const burrow_filters_st *filters, burrow_filters_set_t set)
