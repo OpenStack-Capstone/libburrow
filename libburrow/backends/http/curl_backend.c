@@ -1,5 +1,17 @@
-/*
- * curl_backend
+/**
+ * libburrow: curl_backend
+ *
+ * copyright (C) 2011 Adrian Miranda (ade@psg.com)
+ * all rights reserved.
+ *
+ * Use and distribution licensed under the BSD license.  See
+ * the COPYING file in the main directory for full text.
+ */
+/**
+ * @file
+ * 
+ * @brief this implements a backed for libburow.  It utilizes libcurl to provide
+ * an http connection to a burrow backend server.
  */
 
 #include "config.h"
@@ -27,7 +39,7 @@ struct burrow_backend_st {
 
   CURL *chandle;
   CURLM *curlptr;
-  int malloced;
+  bool malloced;
   bool get_body_only;
 };
 //typedef struct burrow_backend_st burrow_backend_t;
@@ -135,9 +147,9 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
 
   if (backend == 0) {
     backend = (burrow_backend_t *)malloc(sizeof(burrow_backend_t));
-    backend->malloced = 1;
+    backend->malloced = true;
   } else {
-    backend->malloced = 0;
+    backend->malloced = false;
   }
   if (backend == 0)
     return 0;
@@ -159,6 +171,7 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
 static void
 burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  fprintf(stderr, "burrow_backend_http_destroy called\n");
   if (backend->proto != 0)
     free(backend->proto);
   if (backend->server !=0)
@@ -174,10 +187,12 @@ burrow_backend_http_destroy(void * ptr) {
   if (backend->chandle) {
     curl_multi_remove_handle(backend->curlptr, backend->chandle);
     curl_easy_cleanup(backend->chandle);
+    backend->chandle = 0;
   }
   curl_multi_cleanup(backend->curlptr);
+  backend->curlptr = 0;
   
-  if (backend->malloced == 1)
+  if (backend->malloced)
     free(backend);
 }
 
@@ -293,13 +308,44 @@ burrow_backend_http_process(void *ptr) {
   CURLMcode retval;
   int running_handles;
 
-  printf("burrow_backend_http_process starting\n");
+  burrow_log_debug(backend->burrow, "burrow_backend_http_process starting\n");
   do {
     retval = curl_multi_perform(backend->curlptr, &running_handles);
   } while (retval == CURLM_CALL_MULTI_PERFORM);
 
-  printf("burrow_backend_http_process finished looking at stuff, running handles = %d\n", running_handles);
-  
+  burrow_log_debug(backend->burrow, "burrow_backend_http_process finished looking at stuff, running handles = %d\n", running_handles);
+
+  if (retval != CURLM_OK) {
+    // it appears some kind of error occured...
+    fprintf(stderr,
+	    "error has occured when calling curl_multi_perform (%d): %s\n",
+	    retval,
+	    curl_multi_strerror(retval));
+    burrow_error(backend->burrow, BURROW_ERROR_SERVER,
+		 "Call to libcurl failed(%d): %s\n",
+		 retval,
+		 curl_multi_strerror(retval));
+    return BURROW_ERROR_SERVER;
+  }
+  // At this point, the curl_multi interface didn't have a problem,
+  // However, there could still have been errors on transfer...
+  CURLMsg *curlmsg;
+  int msgs_in_queue;
+  curlmsg = curl_multi_info_read(backend->curlptr, &msgs_in_queue);
+  while (curlmsg != NULL) {
+    if (curlmsg->data.result != CURLE_OK) {
+      burrow_error(backend->burrow, BURROW_ERROR_SERVER,
+		   "Error transferring (%d): %s\n",
+		   curlmsg->data.result,
+		   curl_easy_strerror(curlmsg->data.result));
+      return BURROW_ERROR_SERVER;
+    } else {
+      burrow_log_debug(backend->burrow,
+		       "Transfer completed successfully\n");
+    }
+    curlmsg = curl_multi_info_read(backend->curlptr, &msgs_in_queue);
+  }
+
   /* If curl still monitoring fds, we need to tell burrow "frontend"
      which ones to watch for.
   */
@@ -360,11 +406,21 @@ burrow_backend_http_process(void *ptr) {
 				  user_buffer_get_size(backend->buffer),
 				  0);
 	else
-	  if (user_buffer_get_size(backend->buffer) > 0)
+	  if (user_buffer_get_size(backend->buffer) > 0) {
+	    int json_return =
 	    burrow_backend_http_parse_json(backend,
 					   user_buffer_get_text(backend->buffer),
 					   user_buffer_get_size(backend->buffer));
-	
+	    if (json_return < 0) {
+	      // apparently an error occured.
+	      burrow_error(backend->burrow,
+			   BURROW_ERROR_SERVER,
+			   "Error occured while trying to parse JSON message: \"%s\"\n",
+			   user_buffer_get_text(backend->buffer)
+			   );
+			   
+	    }
+	  }
       }
     return BURROW_OK;
   }
@@ -387,7 +443,11 @@ burrow_backend_http_event_raised(void *ptr,
 }
 
 /**
- * gets lists of strings, specificaly get_queues and get_accounts
+ * gets lists of strings, specifically get_queues and get_accounts
+ *
+ * @param ptr the burrow_back_t pointer
+ * @param cmd the burrow_command_st structure, which tells us what we must do.
+ * @return burrow_result_t which tells us if it is complete or still working.
  */
 static burrow_result_t
 burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
@@ -428,6 +488,7 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
   }
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
+  free(url); url = 0;
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
   curl_easy_setopt(chandle, CURLOPT_HTTPGET, 1L);
 
@@ -520,6 +581,7 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   }
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
+  free(url); url = 0;
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
   curl_easy_setopt(chandle, CURLOPT_CUSTOMREQUEST, "DELETE");
 
@@ -651,6 +713,7 @@ burrow_backend_http_common_getting(void *ptr,
       snprintf(url+len_so_far, urllen-len_so_far, "&%s", attribute_str);
     else
       snprintf(url+len_so_far, urllen-len_so_far, "?%s", attribute_str);
+    free(attribute_str); attribute_str = 0;
   }
   fprintf(stderr, "URL to send is \"%s\"\n", url);
 

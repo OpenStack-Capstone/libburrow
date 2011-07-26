@@ -102,16 +102,21 @@ static int burrow_backend_http_json_callback(void *ctx,
 				jproc->body_size,
 				jproc->attributes);
 	/* clean up for the next message, in case there is one */
-	free(jproc->message_id);
-	jproc->message_id = 0;
-	free(jproc->body);
-	jproc->body = 0;
-	jproc->body_size = 0;
-	/* This is ridiculous, but works for now. */
-	if (jproc->attributes) {
-	  burrow_attributes_destroy(jproc->attributes);
+	if (jproc->message_id) {
+	  free(jproc->message_id);
+	  jproc->message_id = 0;
 	}
-	jproc->attributes = burrow_attributes_create(0,0);
+	if (jproc->body) {
+	  free(jproc->body);
+	  jproc->body = 0;
+	}
+	jproc->body_size = 0;
+	/* Make sure we have a clean set of attributes */
+	if (jproc->attributes) {
+	  burrow_attributes_unset(jproc->attributes, BURROW_ATTRIBUTES_ALL);
+	} else {
+	  jproc->attributes = burrow_attributes_create(0,0);
+	}
 
 	break;
       case JSON_T_KEY:
@@ -137,7 +142,10 @@ static int burrow_backend_http_json_callback(void *ctx,
 	    jproc->body = strdup(value->vu.str.value);
 	    jproc->body_size = strlen(value->vu.str.value);
 	  } else {
-	    fprintf(stderr, "WARNING!  unrecognized key \"%s\"\n", jproc->key);
+	    fprintf(stderr, "WARNING!  unrecognized string valued key \"%s\"=\"%s\"\n", jproc->key, value->vu.str.value);
+	    burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+			 BURROW_ERROR_SERVER,
+			 "ERROR!  unrecognized string valued key \"%s\"=\"%s\"\n", jproc->key, value->vu.str.value);
 	    return 0;
 	  }
 	} else {
@@ -156,6 +164,10 @@ static int burrow_backend_http_json_callback(void *ctx,
 	    burrow_attributes_set_ttl(jproc->attributes,
 				      (uint32_t)value->vu.integer_value);
 	  } else {
+	     burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+			  BURROW_ERROR_SERVER,
+			  "WARNING! unrecognized integer key \"%s\"=%d\n",
+			  jproc->key, value->vu.integer_value);
 	    fprintf(stderr, "WARNING! unrecognized integer key \"%s\"=%d\n",
 		    jproc->key, value->vu.integer_value);
 	    return 0;
@@ -212,6 +224,7 @@ static int burrow_backend_http_json_callback(void *ctx,
  * @param backend the http backend
  * @param jsontext the actual JSON text we got from the burrow server
  * @param jsonsize the size of the JSON text we got from the burrow server
+ * @return 0 if successful, negative if parsing fails
  */
 int
 burrow_backend_http_parse_json(burrow_backend_t *backend,
