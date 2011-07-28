@@ -20,9 +20,9 @@
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
 
-#define DICTIONARY_LENGTH -1
+#define DICTIONARY_LENGTH 0
 
-typedef enum action_t {UPDATE, GET, DELETE, SEARCH, CREATE, REPORT, IGNORE} action_t;
+typedef enum {SEARCH, CREATE} dictionary_get_action_t;
 
 typedef struct dictionary_node_st 
 {
@@ -45,40 +45,18 @@ typedef struct
 
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
-dictionary_st* init(dictionary_st* self, burrow_st* burrow)
+static dictionary_st* init(dictionary_st* self, burrow_st* burrow)
 {
-  self = burrow_malloc(burrow, sizeof(dictionary_st));
+  if(!self)
+    self = burrow_malloc(burrow, sizeof(dictionary_st));
+  
   self->first = self->last = NULL;
   self->length = 0;
   self->burrow = burrow;
   return self;
 }
 /*********************************************************************************************************************/
-int length(dictionary_st* self)
-{
-  if(!self)
-    return -1;
-  
-  return self->length;
-}
-/*********************************************************************************************************************/
-void print(dictionary_st* self)
-{
-  if(!self)
-    return;
-  
-  dictionary_node_st* current_node = self->first;
-  
-  int i;
-  for(i = 0; i < self->length; i++)
-  {
-    printf("\n index: %i key: %s content %s", i, current_node->key, (char*)current_node->data);
-    if(current_node->next != NULL)
-      current_node = current_node->next;
-  }
-}
-/*********************************************************************************************************************/
-dictionary_node_st* add(dictionary_st* self, const char* key, void* data_pointer)
+static dictionary_node_st* add(dictionary_st* self, const char* key, void* data_pointer)
 {
   if(!self)
     return NULL;
@@ -104,7 +82,7 @@ dictionary_node_st* add(dictionary_st* self, const char* key, void* data_pointer
   return new_node;
 }
 /*********************************************************************************************************************/
-dictionary_node_st* get(dictionary_st* self, const char* key, action_t default_action)
+static dictionary_node_st* get(dictionary_st* self, const char* key, dictionary_get_action_t default_action)
 {
   if(!key || !self)
     return NULL;
@@ -121,7 +99,7 @@ dictionary_node_st* get(dictionary_st* self, const char* key, action_t default_a
   if(!current_node && default_action == CREATE)
   {
     dictionary_node_st* temp = add(self, key, NULL);
-    dictionary_st* messages = init(messages, self->burrow);
+    dictionary_st* messages = init(NULL, self->burrow);
     temp->data = messages;
     current_node = temp;
   }
@@ -129,19 +107,19 @@ dictionary_node_st* get(dictionary_st* self, const char* key, action_t default_a
   return current_node;
 }
 /*********************************************************************************************************************/
-dictionary_st* iter(dictionary_st* self, const char* l_bound_key, int32_t u_bound)
+static dictionary_st* iter(dictionary_st* self, const char* l_bound_key, uint32_t u_bound)
 {
   if(!self)
     return NULL;
   
-  dictionary_st* dictionary = init(dictionary, self->burrow);
+  dictionary_st* dictionary = init(NULL, self->burrow);
   dictionary_node_st* current_node;
     
   if(!(current_node = get(self, l_bound_key, SEARCH)))
     current_node = self->first;
   
   if(u_bound == DICTIONARY_LENGTH)
-    u_bound = self->length;
+    u_bound = (uint32_t)self->length;
   
   while(current_node && u_bound)
   {
@@ -153,7 +131,7 @@ dictionary_st* iter(dictionary_st* self, const char* l_bound_key, int32_t u_boun
   return dictionary;
 }
 /*********************************************************************************************************************/
-void delete_node(dictionary_st* self, const char* key)
+static void delete_node(dictionary_st* self, const char* key)
 {
   if(!self)
     return;
@@ -178,7 +156,7 @@ void delete_node(dictionary_st* self, const char* key)
   self->length--;
 }
 /*********************************************************************************************************************/
-void delete(dictionary_st* self, const char* l_bound_key, int32_t u_bound)
+static void delete(dictionary_st* self, const char* l_bound_key, int32_t u_bound)
 {
   if(!self || !self->length)
     return;
@@ -193,6 +171,7 @@ void delete(dictionary_st* self, const char* l_bound_key, int32_t u_bound)
   {
     next_node = current_node->next;
     delete_node(self, current_node->key);
+    current_node = next_node;
     u_bound--;
   }
 }

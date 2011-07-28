@@ -18,6 +18,8 @@
 #include "dictionary.c"
 #include <time.h>
 
+typedef enum {UPDATE, GET, DELETE} scan_action_t;
+typedef enum {REPORT, IGNORE} delete_action_t;
 
 typedef dictionary_st queues_st;
 typedef dictionary_node_st queue_st;
@@ -53,7 +55,7 @@ static burrow_filters_st* _process_filter(burrow_backend_memory_st* self, const 
   
   out_filters->marker = NULL;
   out_filters->limit = DICTIONARY_LENGTH;
-  out_filters->match_hidden = true;
+  out_filters->match_hidden = false;
   
   if(in_filters)
   {
@@ -70,7 +72,7 @@ static burrow_filters_st* _process_filter(burrow_backend_memory_st* self, const 
   return out_filters;
 }
 /*********************************************************************************************************************/
-static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st* cmd, const action_t action1, const action_t action2)
+static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st* cmd, scan_action_t scan_type, delete_action_t delete_action)
 {
   dictionary_st* iterator;
   dictionary_node_st* item;
@@ -81,7 +83,7 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
   uint32_t attributes_ttl;
   uint32_t attributes_hide;
   
-  time_t current_time = time(NULL);
+  uint32_t current_time = (uint32_t)time(NULL);
   const char* account_key = cmd->account;
   const char* queue_key = cmd->queue;
   
@@ -120,13 +122,13 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
       continue;
     }
     
-    if(!ref_filters->match_hidden && message->hide)
+    if(!ref_filters->match_hidden && (message->hide > current_time))
     {
       item = item->next;
       continue;
     }
     
-    switch(action1)
+    switch(scan_type)
     {
       case UPDATE:
         if(attributes_ttl)
@@ -135,8 +137,8 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
           message->hide = attributes_hide;
         
       case GET:
-        reference_attributes.ttl = (message->ttl > 0) ? (message->ttl - time(NULL)) : 0;
-        reference_attributes.hide = (message->hide > 0) ? (message->hide - time(NULL)) : 0;
+        reference_attributes.ttl = message->ttl - current_time;
+        reference_attributes.hide = (message->hide > current_time) ? (message->hide - current_time) : 0;
         reference_attributes.set |= BURROW_ATTRIBUTES_TTL | BURROW_ATTRIBUTES_HIDE;
         
         burrow_callback_message
@@ -153,10 +155,10 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
       case DELETE:
         delete_node(queue->data, item->key);
         
-        if(action2 == REPORT)
+        if(delete_action == REPORT)
         {
-          reference_attributes.ttl = (message->ttl > 0) ? (message->ttl - time(NULL)) : 0;
-          reference_attributes.hide = (message->hide > 0) ? (message->hide - time(NULL)) : 0;
+          reference_attributes.ttl = message->ttl - current_time;
+          reference_attributes.hide = (message->hide > current_time) ? (message->hide - current_time) : 0;
           reference_attributes.set |= BURROW_ATTRIBUTES_TTL | BURROW_ATTRIBUTES_HIDE;
         
           burrow_callback_message
@@ -172,6 +174,9 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
         burrow_free(self->burrow, message);
         
         break;
+        
+      default:
+        break;
     }
     
     item = item->next;
@@ -183,6 +188,9 @@ static void _scan_queue(burrow_backend_memory_st* self, const burrow_command_st*
   
   if(!((dictionary_st*)(queue->data))->length)
     delete_node(get(self->accounts, account_key, SEARCH)->data, queue->key);
+  
+  if(!((dictionary_st*)(account->data))->length)
+    delete_node(self->accounts, account_key);
 }
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
@@ -239,10 +247,6 @@ static burrow_result_t burrow_backend_memory_delete_queues(void* ptr, const burr
   burrow_free(self->burrow, ref_filters);
   burrow_free(self->burrow, (burrow_filters_st*)erase_cmd->filters);
   burrow_free(self->burrow, erase_cmd);
-  
-  dictionary_st* account = get(self->accounts, cmd->account, SEARCH)->data;
-  if(!account->length)
-    delete_node(self->accounts, cmd->account);
   
   return BURROW_OK;
 }
@@ -337,7 +341,7 @@ static burrow_result_t burrow_backend_memory_create_message(void* ptr, const bur
   new_message->body_size = cmd->body_size;
   
   
-  time_t creation_time = time(NULL);
+  uint32_t creation_time = (uint32_t)time(NULL);
   
   if(cmd->attributes && (cmd->attributes->set & BURROW_ATTRIBUTES_TTL))  
     new_message->ttl = creation_time + cmd->attributes->ttl;
@@ -373,7 +377,7 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
   uint32_t attributes_ttl;
   uint32_t attributes_hide;
   
-  time_t current_time = time(NULL);
+  uint32_t current_time = (uint32_t)time(NULL);
   
   attributes_ttl = attributes_hide = 0;
   if(cmd->attributes)
@@ -383,7 +387,6 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
         attributes_ttl = cmd->attributes->ttl + current_time;
     
     if(cmd->attributes->set & BURROW_ATTRIBUTES_HIDE)
-      if(cmd->attributes->hide > 0)
         attributes_hide = cmd->attributes->hide + current_time;
   }
   
@@ -392,7 +395,6 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
       if((message_node = get(queue->data, cmd->message_id, SEARCH)))
         if((message = message_node->data))
         {
-          /*  Careful here: pulled a copy/paste from get_message...*/
           if(message->ttl <= current_time)
           {
             burrow_free(self->burrow, message);
@@ -404,7 +406,7 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
             
             return BURROW_OK;
           }
-
+          
           if(attributes_ttl)
             message->ttl = attributes_ttl;
           
@@ -412,8 +414,8 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
             message->hide = attributes_hide;
           
           burrow_attributes_st attributes;
-          attributes.ttl = message->ttl;
-          attributes.hide = message->hide;
+          attributes.ttl = message->ttl - current_time;
+          attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
           
           burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
           return BURROW_OK;
@@ -435,7 +437,7 @@ static burrow_result_t burrow_backend_memory_get_message(void *ptr, const burrow
       if((message_node = get(queue->data, cmd->message_id, SEARCH)))
         if((message = message_node->data))
         {
-          time_t current_time = time(NULL);
+          uint32_t current_time = (uint32_t)time(NULL);
           if(message->ttl <= current_time)
           {
             burrow_free(self->burrow, message);
@@ -447,9 +449,6 @@ static burrow_result_t burrow_backend_memory_get_message(void *ptr, const burrow
             
             return BURROW_OK;
           }
-          
-          if((message->hide > current_time))
-            return BURROW_OK;
           
           burrow_attributes_st attributes;
           attributes.ttl = message->ttl - current_time;
@@ -474,26 +473,29 @@ static burrow_result_t burrow_backend_memory_delete_message(void *ptr, const bur
       if((message = get(queue, cmd->message_id, SEARCH)->data))
         if(message)
         {
-          time_t current_time = time(NULL);
+          uint32_t current_time = (uint32_t)time(NULL);
           if(message->ttl > current_time)
-            if(message->hide > current_time)
-              return BURROW_OK;
-            else
-            {
-              burrow_attributes_st attributes;
-              attributes.ttl = message->ttl - current_time;
-              attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
+          {
+            burrow_attributes_st attributes;
+            attributes.ttl = message->ttl - current_time;
+            attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
               
-              burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
-            }
+            burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
+          }
           
           burrow_free(self->burrow, message);
           delete_node(queue, cmd->message_id);
           
           if(!queue->length)
             delete_node(queues, cmd->queue);
+          
+          if(!queue->length)
+            delete_node(queues, cmd->queue);
+          
+          if(!queues->length)
+            delete_node(self->accounts, cmd->account);
         }
-  
+        
   return BURROW_OK;
 }
 /*********************************************************************************************************************/
@@ -517,7 +519,7 @@ static void* burrow_backend_memory_create(void* ptr, burrow_st* burrow)
   }
   
   self->burrow = burrow;
-  self->accounts = init(self->accounts, burrow);
+  self->accounts = init(NULL, burrow);
   
   return self;
 }
@@ -538,7 +540,7 @@ static void burrow_backend_memory_free(void* ptr)
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
-burrow_backend_functions_st burrow_backend_memory_functions_st = 
+burrow_backend_functions_st burrow_backend_memory_functions = 
 {
   .create           = &burrow_backend_memory_create,
   .destroy          = &burrow_backend_memory_free,
