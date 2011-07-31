@@ -49,6 +49,7 @@ lib_LTLIBRARIES += libburrow.la
 libburrow_la_SOURCES = \
 	libburrow/burrow.c \
 	libburrow/backends/dummy/dummy.c \
+	libburrow/backends/memory/memory.c \
 	libburrow/attributes.c \
 	libburrow/filters.c \
 	libburrow/backends.c \
@@ -77,6 +78,7 @@ noinst_HEADERS = \
 	libburrow/backends/http/user_buffer.h \
 	libburrow/backends/http/json_processing.h \
 	libburrow/backends/dummy/dummy.h \
+	libburrow/backends/memory/memory.h \
 	tests/common.h
 
 libburrow_la_CFLAGS = \
@@ -96,6 +98,7 @@ check_PROGRAMS = \
 	tests/burrow_filters_st \
 	tests/burrow_st \
 	tests/burrow_backend_dummy \
+	tests/burrow_backend_memory \
 	tests/burrow_attributes_st \
 	tests/burrow_backend_http
 
