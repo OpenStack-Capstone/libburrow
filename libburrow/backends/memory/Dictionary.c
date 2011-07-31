@@ -48,7 +48,11 @@ typedef struct
 static dictionary_st* init(dictionary_st* self, burrow_st* burrow)
 {
   if(!self)
-    self = burrow_malloc(burrow, sizeof(dictionary_st));
+    if(!(self = burrow_malloc(burrow, sizeof(dictionary_st))))
+    {
+      burrow_log_error(burrow, "custom malloc failed in dictionary.c: init()");
+      return NULL;
+    }
   
   self->first = self->last = NULL;
   self->length = 0;
@@ -62,7 +66,20 @@ static dictionary_node_st* add(dictionary_st* self, const char* key, void* data_
     return NULL;
   
   dictionary_node_st* new_node = burrow_malloc(self->burrow, sizeof(dictionary_node_st));
+  if(!new_node)
+  {
+    burrow_log_error(self->burrow, "custom malloc failed in dictionary.c: add(): new_node");
+    return NULL;
+  }
+  
   new_node->key = burrow_malloc(self->burrow, strlen(key)+1);
+  if(!new_node->key)
+  {
+    burrow_log_error(self->burrow, "custom malloc failed in dictionary.c: add(): new_node->key");
+    burrow_free(self->burrow, new_node);
+    return NULL;
+  }
+  
   strcpy(new_node->key, key);
   new_node->previous = self->last;
     
@@ -99,36 +116,18 @@ static dictionary_node_st* get(dictionary_st* self, const char* key, dictionary_
   if(!current_node && default_action == CREATE)
   {
     dictionary_node_st* temp = add(self, key, NULL);
+    if(!temp)
+      return NULL;
+    
     dictionary_st* messages = init(NULL, self->burrow);
+    if(!messages)
+      return NULL;
+    
     temp->data = messages;
     current_node = temp;
   }
      
   return current_node;
-}
-/*********************************************************************************************************************/
-static dictionary_st* iter(dictionary_st* self, const char* l_bound_key, uint32_t u_bound)
-{
-  if(!self)
-    return NULL;
-  
-  dictionary_st* dictionary = init(NULL, self->burrow);
-  dictionary_node_st* current_node;
-    
-  if(!(current_node = get(self, l_bound_key, SEARCH)))
-    current_node = self->first;
-  
-  if(u_bound == DICTIONARY_LENGTH)
-    u_bound = (uint32_t)self->length;
-  
-  while(current_node && u_bound)
-  {
-    add(dictionary, current_node->key, current_node->data);
-    current_node = current_node->next;
-    u_bound--;
-  }
-  
-  return dictionary;
 }
 /*********************************************************************************************************************/
 static void delete_node(dictionary_st* self, const char* key)
@@ -174,6 +173,38 @@ static void delete(dictionary_st* self, const char* l_bound_key, int32_t u_bound
     current_node = next_node;
     u_bound--;
   }
+}
+/*********************************************************************************************************************/
+static dictionary_st* iter(dictionary_st* self, const char* l_bound_key, uint32_t u_bound)
+{
+  if(!self)
+    return NULL;
+  
+  dictionary_st* dictionary = init(NULL, self->burrow);
+  if(!dictionary)
+    return NULL;
+  
+  dictionary_node_st* current_node;
+  
+  if(!(current_node = get(self, l_bound_key, SEARCH)))
+    current_node = self->first;
+  
+  if(u_bound == DICTIONARY_LENGTH)
+    u_bound = (uint32_t)self->length;
+  
+  while(current_node && u_bound)
+  {
+    if(!add(dictionary, current_node->key, current_node->data))
+    {
+      delete(dictionary, NULL, dictionary->length);
+      break;
+    }
+    
+    current_node = current_node->next;
+    u_bound--;
+  }
+  
+  return dictionary;
 }
 /*********************************************************************************************************************/
 #endif
