@@ -97,37 +97,38 @@ burrow_backend_http_filters_to_string(const burrow_filters_st *filters) {
   if (filters== 0)
     return 0;
 
-  if (filters->set & BURROW_FILTERS_MATCH_HIDDEN){
-    if (filters->match_hidden == true)
+  if (burrow_filters_check(filters, BURROW_FILTERS_MATCH_HIDDEN)) {
+    if (burrow_filters_get_match_hidden(filters) == true)
       sprintf(buf, "match_hidden=true");
-    else if (filters->match_hidden == false)
+    else 
       sprintf(buf, "match_hidden=false");
   }
-  if (filters->set & BURROW_FILTERS_LIMIT) {
+  if (burrow_filters_check(filters, BURROW_FILTERS_LIMIT)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "limit=%d", filters->limit);
+    sprintf(buf + strlen(buf), "limit=%d", burrow_filters_get_limit(filters));
   }
-  if (filters->set & BURROW_FILTERS_MARKER) {
+  if (burrow_filters_check(filters, BURROW_FILTERS_MARKER)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "marker=%s", filters->marker);
+    sprintf(buf + strlen(buf), "marker=%s", burrow_filters_get_marker(filters));
   }
-  if (filters->set & BURROW_FILTERS_WAIT) {
+  if (burrow_filters_check(filters, BURROW_FILTERS_WAIT)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "wait=%d", filters->wait);
+    sprintf(buf + strlen(buf), "wait=%d", burrow_filters_get_wait(filters));
   }
-  if (filters->set & BURROW_FILTERS_DETAIL) {
+  if (burrow_filters_check(filters, BURROW_FILTERS_DETAIL)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    if (filters->detail == BURROW_DETAIL_NONE)
+    if (burrow_filters_get_detail(filters) == BURROW_DETAIL_NONE)
       sprintf(buf + strlen(buf), "detail=none");
-    else if (filters->detail == BURROW_DETAIL_ID)
+    else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_ID)
       sprintf(buf + strlen(buf), "detail=id");
-    else if (filters->detail == BURROW_DETAIL_ATTRIBUTES)
+    else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_ATTRIBUTES)
       sprintf(buf + strlen(buf), "detail=attributes");
-    else if (filters->detail == BURROW_DETAIL_BODY)
+    else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_BODY)
       sprintf(buf + strlen(buf), "detail=body");
-    else if (filters->detail == BURROW_DETAIL_ALL)
+    else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_ALL)
       sprintf(buf + strlen(buf), "detail=all");
   }
+  
   if (strlen(buf) == 0)
     return 0;
   else
@@ -646,8 +647,8 @@ burrow_backend_http_common_getting(void *ptr,
   char *attribute_str = 0;
 
   if ((filters) &&
-      (filters->set | BURROW_FILTERS_DETAIL) &&
-      (filters->detail == BURROW_DETAIL_BODY))
+      (burrow_filters_check(filters, BURROW_FILTERS_DETAIL)) &&
+      (burrow_filters_get_detail(filters) == BURROW_DETAIL_BODY))
     backend->get_body_only = true;
   else
     backend->get_body_only = false;
