@@ -112,12 +112,12 @@ uint32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes)
 
 bool burrow_attributes_isset_ttl(const burrow_attributes_st *attributes)
 {
-  return (attributes->ttl & BURROW_ATTRIBUTES_TTL);
+  return (attributes->set & BURROW_ATTRIBUTES_TTL);
 }
 
 void burrow_attributes_unset_ttl(burrow_attributes_st *attributes)
 {
-  attributes->ttl &= ~BURROW_ATTRIBUTES_TTL;
+  attributes->set &= ~BURROW_ATTRIBUTES_TTL;
 }
 
 
@@ -135,10 +135,10 @@ uint32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes)
 
 bool burrow_attributes_isset_hide(const burrow_attributes_st *attributes)
 {
-  return (attributes->ttl & BURROW_ATTRIBUTES_HIDE);
+  return (attributes->set & BURROW_ATTRIBUTES_HIDE);
 }
 
 void burrow_attributes_unset_hide(burrow_attributes_st *attributes)
 {
-  attributes->ttl &= ~BURROW_ATTRIBUTES_HIDE;
+  attributes->set &= ~BURROW_ATTRIBUTES_HIDE;
 }

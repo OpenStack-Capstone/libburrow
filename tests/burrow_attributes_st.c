@@ -48,21 +48,21 @@ int main(void)
     burrow_test_error("returned NULL");
 
   // Test default values
-  burrow_test("burrow_attributes_check");
+  burrow_test("burrow_attributes check unset");
   if (burrow_attributes_isset_ttl(attr) ||
       burrow_attributes_isset_hide(attr))
     burrow_test_error("badly initialized, some attributes set")
   
-  burrow_test("burrow_attributes ttl set get")
+  burrow_test("burrow_attributes ttl set check get")
   burrow_attributes_set_ttl(attr, TTL);
-  if (!burrow_attributes_isset_ttl(attr))
+  if (burrow_attributes_isset_ttl(attr) != true)
     burrow_test_error("check failed");
   if ((v = burrow_attributes_get_ttl(attr)) != TTL)
     burrow_test_error("expected 100, got: %d", v);
   
-  burrow_test("burrow_attributes hide set get")
+  burrow_test("burrow_attributes hide set check get")
   burrow_attributes_set_hide(attr, HIDE);
-  if (!burrow_attributes_isset_hide(attr))
+  if (burrow_attributes_isset_hide(attr) != true)
     burrow_test_error("check failed");
   if ((v = burrow_attributes_get_hide(attr)) != HIDE)
     burrow_test_error("hide: expected 10, got: %d", v);
