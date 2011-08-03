@@ -251,7 +251,7 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
     int retval;
     int nextchar = jsontext[i];
     if ((retval = JSON_parser_char(jc, nextchar)) <= 0) {
-      burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+      burrow_error(burrow_backend_http_get_burrow(backend),
 		   BURROW_ERROR_SERVER,
 		   "WARNING! JSON_parser_char (%d) at byte %d (%d = '%c')\n",
 		   retval, i, (int)nextchar, nextchar);
@@ -259,7 +259,7 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
     }
   }    
   if (!JSON_parser_done(jc)) {
-    burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+    burrow_error(burrow_backend_http_get_burrow(backend),
 		 BURROW_ERROR_SERVER,
 		 "WARNING! JSON_parser_end indicates JSON syntax error\n");
     delete_JSON_parser(jc);
