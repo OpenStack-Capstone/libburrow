@@ -55,7 +55,7 @@ void burrow_internal_log(burrow_st *burrow, burrow_verbose_t verbose, const char
 }
 
 
-void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
+int burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
 {
   struct pollfd *pfd;
   uint32_t needed;
@@ -66,8 +66,7 @@ void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events
     pfd = realloc(burrow->pfds, needed * sizeof(struct pollfd));
     if (!pfd) {
       burrow_log_error(burrow, "burrow_internal_watch_fd: couldn't reallocate pfds struct");
-      /* TODO: something more here? how to bubble up this error? */
-      return;
+      return ENOMEM;
     }
     burrow->pfds = pfd;
     burrow->pfds_size = needed;
@@ -82,9 +81,11 @@ void burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events
     pfd->events |= POLLIN;
   if (events & BURROW_IOEVENT_WRITE)
     pfd->events |= POLLOUT;
+
+  return 0;
 }
 
-static void burrow_internal_poll_fds(burrow_st *burrow)
+int burrow_internal_poll_fds(burrow_st *burrow)
 {
   int count;
   uint32_t watch_size;
@@ -92,18 +93,18 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
   struct pollfd *last_pfd;
   
   if (burrow->watch_size == 0) /* nothing to watch */
-    return;
+    return 0;
 
   count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
   if (count == -1) {
     burrow_log_error(burrow, "burrow_internal_poll_fds: poll: error encountered %d", errno);
-    return;
+    return errno;
   }
   if (count == 0) {
     /* Timeout has occurred */
     burrow_log_info(burrow, "burrow_internal_poll_fds: timeout %d reached", burrow->timeout);
     burrow_cancel(burrow);
-    return;
+    return ETIMEDOUT;
   }
 
   pfd = burrow->pfds;
@@ -139,15 +140,15 @@ static void burrow_internal_poll_fds(burrow_st *burrow)
       pfd++;
   }
   burrow->watch_size = watch_size;
-  return;
+  return 0;
 }
 
-burrow_result_t burrow_process(burrow_st *burrow)
+int burrow_process(burrow_st *burrow)
 {
-  burrow_result_t result = BURROW_OK_WAITING;
+  int result = 0;
 
   if (burrow->flags & BURROW_FLAG_PROCESSING)/* prevent recursion */
-    return BURROW_OK_WAITING; /* parent process loop will pick it up */
+    return EAGAIN; /* parent process loop will pick it up */
 
   burrow->flags |= BURROW_FLAG_PROCESSING;
 
@@ -156,7 +157,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
     
     case BURROW_STATE_START: /* command is initialized, but hasn't kicked off */
       result = burrow->cmd.command_fn(burrow->backend_context, &burrow->cmd);
-      if (result == BURROW_OK_WAITING)
+      if (result == EAGAIN) /* TODO: EAGAIN */
         burrow->state = BURROW_STATE_WAITING;
       else /* could be error or OK */
         burrow->state = BURROW_STATE_FINISH;
@@ -164,7 +165,7 @@ burrow_result_t burrow_process(burrow_st *burrow)
 
     case BURROW_STATE_READY: /* io events have made the backend ready */
       result = burrow->backend->process(burrow->backend_context);
-      if (result == BURROW_OK_WAITING)
+      if (result == EAGAIN)
         burrow->state = BURROW_STATE_WAITING;
       else /* could be error or OK */
         burrow->state = BURROW_STATE_FINISH;
@@ -172,10 +173,11 @@ burrow_result_t burrow_process(burrow_st *burrow)
 
     case BURROW_STATE_WAITING: /* backend is blocking on io */
       if (burrow->watch_size == 0)
-        return BURROW_OK_WAITING; /* waiting is performed by the client */
+        return EAGAIN; /* waiting is performed by the client */
       
       /* TODO: what if this returns for timeout or error? */
-      burrow_internal_poll_fds(burrow); /* this should unblock the io */
+      if ((result = burrow_internal_poll_fds(burrow)) != 0) /* this should unblock the io */
+        return result;
       break;
 
     case BURROW_STATE_FINISH: /* backend is done */
@@ -198,21 +200,21 @@ burrow_result_t burrow_process(burrow_st *burrow)
   return result;
 }
 
-burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
+int burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
 {
-  burrow_result_t result;
+  int result;
   
   if (!burrow->backend->event_raised) {
     burrow_log_warn(burrow, "burrow_event_raised: event raised but not no handler defined");
-    return BURROW_ERROR_UNSUPPORTED;
+    return ENOTCONN;
   }
 
   if (burrow->state != BURROW_STATE_WAITING)
-    burrow_log_error(burrow, "burrow_event_raised: event raised but not expected, fd %d, event %x", fd, event);
+    burrow_log_warn(burrow, "burrow_event_raised: event raised but not expected, fd %d, event %x", fd, event);
         
   result = burrow->backend->event_raised(burrow->backend_context, fd, event);
   
-  if (result == BURROW_OK) {
+  if (result == 0) {
     burrow->state = BURROW_STATE_READY;
     if (burrow->options & BURROW_OPT_AUTOPROCESS)
       return burrow_process(burrow);
@@ -222,6 +224,7 @@ burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t 
 
 void burrow_cancel(burrow_st *burrow)
 {
+  /* TODO: Does not yet have the semantics as documented */
   if (burrow->state == BURROW_STATE_IDLE)
     return;
 
@@ -318,14 +321,6 @@ size_t burrow_size(const char *backend)
     
   return (sizeof(burrow_st) + backend_fns->size());
 }
-
-burrow_st *burrow_clone(burrow_st *dest, burrow_st *src)
-{
-  /* this is tricky.... TODO: think this through w/r/t appended backends! */
-  (void) dest;
-  (void) src;
-  return NULL;
-}
  
 void burrow_set_context(burrow_st *burrow, void *context)
 {
@@ -357,17 +352,19 @@ burrow_options_t burrow_get_options(burrow_st *burrow)
   return burrow->options;
 }
 
-burrow_result_t burrow_backend_set_option(burrow_st *burrow, const char *option, const char *value)
+int burrow_set_backend_option(burrow_st *burrow, const char *option, const char *value)
 {
+  if (!burrow->backend->set_option)
+    return EINVAL;
   return burrow->backend->set_option(burrow->backend_context, option, value);
 }
 
-burrow_result_t burrow_backend_set_option_int(burrow_st *burrow, const char *option, int32_t value)
+int burrow_set_backend_option_int(burrow_st *burrow, const char *option, int32_t value)
 {
   (void) burrow;
   (void) option;
   (void) value;
-  return BURROW_ERROR_UNSUPPORTED;
+  return EINVAL;
   /* TODO: not implemented? Maybe never? */
 }
 
@@ -411,20 +408,22 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func)
   burrow->free_fn = func;
 }
 
-burrow_result_t burrow_get_message(burrow_st *burrow,
-                                   const char *account,
-                                   const char *queue,
-                                   const char *message_id,
-                                   const burrow_filters_st *filters)
+int burrow_get_message(burrow_st *burrow,
+                       const char *account,
+                       const char *queue,
+                       const char *message_id,
+                       const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_get_message: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
 
-  if (!account || !queue || !message_id) {
+  if (!account || !queue || !message_id)
+  {
     burrow_log_error(burrow, "burrow_get_message: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_GET_MESSAGE;
@@ -439,25 +438,27 @@ burrow_result_t burrow_get_message(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_create_message(burrow_st *burrow,
-                                      const char *account, 
-                                      const char *queue, 
-                                      const char *message_id,
-                                      const uint8_t *body,
-                                      size_t body_size,
-                                      const burrow_attributes_st *attributes)
+int burrow_create_message(burrow_st *burrow,
+                          const char *account, 
+                          const char *queue, 
+                          const char *message_id,
+                          const uint8_t *body,
+                          size_t body_size,
+                          const burrow_attributes_st *attributes)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_create_message: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account || !queue || !message_id || !body) {
+  if (!account || !queue || !message_id || !body)
+  {
     burrow_log_error(burrow, "burrow_create_message: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_CREATE_MESSAGE;
@@ -474,24 +475,26 @@ burrow_result_t burrow_create_message(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_update_message(burrow_st *burrow,
+int burrow_update_message(burrow_st *burrow,
                                       const char *account,
                                       const char *queue,
                                       const char *message_id,
                                       const burrow_attributes_st *attributes,
                                       const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_update_message: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account || !queue || !message_id || !attributes) {
+  if (!account || !queue || !message_id || !attributes)
+  {
     burrow_log_error(burrow, "burrow_update_message: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGE;
@@ -507,23 +510,25 @@ burrow_result_t burrow_update_message(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_delete_message(burrow_st *burrow,
-                                      const char *account,
-                                      const char *queue,
-                                      const char *message_id,
-                                      const burrow_filters_st *filters)
+int burrow_delete_message(burrow_st *burrow,
+                          const char *account,
+                          const char *queue,
+                          const char *message_id,
+                          const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_delete_message: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account || !queue || !message_id) {
+  if (!account || !queue || !message_id)
+  {
     burrow_log_error(burrow, "burrow_delete_message: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_DELETE_MESSAGE;
@@ -538,22 +543,24 @@ burrow_result_t burrow_delete_message(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_get_messages(burrow_st *burrow,
-                                    const char *account,
-                                    const char *queue,
-                                    const burrow_filters_st *filters)
+int burrow_get_messages(burrow_st *burrow,
+                        const char *account,
+                        const char *queue,
+                        const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_get_messages: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account || !queue) {
+  if (!account || !queue)
+  {
     burrow_log_error(burrow, "burrow_get_messages: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_GET_MESSAGES;
@@ -567,23 +574,25 @@ burrow_result_t burrow_get_messages(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
 
-burrow_result_t burrow_delete_messages(burrow_st *burrow,
-                                       const char *account,
-                                       const char *queue,
-                                       const burrow_filters_st *filters)
+int burrow_delete_messages(burrow_st *burrow,
+                           const char *account,
+                           const char *queue,
+                           const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_delete_messages: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account || !queue) {
+  if (!account || !queue)
+  {
     burrow_log_error(burrow, "burrow_delete_messages: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_DELETE_MESSAGES;
@@ -597,24 +606,26 @@ burrow_result_t burrow_delete_messages(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
 
-burrow_result_t burrow_update_messages(burrow_st *burrow,
-                                       const char *account,
-                                       const char *queue,
-                                       const burrow_attributes_st *attributes,
-                                       const burrow_filters_st *filters)
+int burrow_update_messages(burrow_st *burrow,
+                           const char *account,
+                           const char *queue,
+                           const burrow_attributes_st *attributes,
+                           const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_update_messages: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account || !queue || !attributes) {
+  if (!account || !queue || !attributes)
+  {
     burrow_log_error(burrow, "burrow_update_messages: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_UPDATE_MESSAGES;
@@ -629,22 +640,24 @@ burrow_result_t burrow_update_messages(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
 
-burrow_result_t burrow_get_queues(burrow_st *burrow,
-                                  const char *account,
-                                  const burrow_filters_st *filters)
+int burrow_get_queues(burrow_st *burrow,
+                      const char *account,
+                      const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_get_queues: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account) {
+  if (!account)
+  {
     burrow_log_error(burrow, "burrow_get_queues: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_GET_QUEUES;
@@ -657,21 +670,23 @@ burrow_result_t burrow_get_queues(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_delete_queues(burrow_st *burrow,
-                                     const char *account,
-                                     const burrow_filters_st *filters)
+int burrow_delete_queues(burrow_st *burrow,
+                         const char *account,
+                         const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_delete_queues: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
-  if (!account) {
+  if (!account)
+  {
     burrow_log_error(burrow, "burrow_delete_queues: invalid parameters");
-    return BURROW_ERROR_BAD_ARGS;
+    return EINVAL;
   }
   
   burrow->cmd.command = BURROW_CMD_DELETE_QUEUES;
@@ -684,14 +699,15 @@ burrow_result_t burrow_delete_queues(burrow_st *burrow,
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters)
+int burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_get_accounts: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
   burrow->cmd.command = BURROW_CMD_GET_ACCOUNTS;
@@ -703,14 +719,15 @@ burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }
 
-burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters)
+int burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters)
 {
-  if (burrow->state != BURROW_STATE_IDLE) {
+  if (burrow->state != BURROW_STATE_IDLE)
+  {
     burrow_log_error(burrow, "burrow_delete_accounts: burrow not in an idle state");
-    return BURROW_ERROR_NOT_READY;
+    return EINPROGRESS;
   }
   
   burrow->cmd.command = BURROW_CMD_DELETE_ACCOUNTS;
@@ -722,5 +739,5 @@ burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_s
   if (burrow->options & BURROW_OPT_AUTOPROCESS)
     return burrow_process(burrow);
 
-  return BURROW_OK;
+  return 0;
 }

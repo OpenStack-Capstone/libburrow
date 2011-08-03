@@ -75,18 +75,6 @@ BURROW_API
 size_t burrow_size(const char *backend);
 
 /**
- * Clones a burrow object in its entirety. Any ongoing commands/state will not
- * be present in the cloned object. If no destination is specified, one will
- * be allocated using the source's malloc function.
- *
- * @param dest Destination burrow objec; can be NULL
- * @param src Source burrow object; must not be NULL
- * @return The cloned burrow object, or NULL on error
- */
-BURROW_API
-burrow_st *burrow_clone(burrow_st *dest, burrow_st *src);  
- 
-/**
  * Sets an associated context pointer. This will be passed to all
  * callback functions.
  *
@@ -146,20 +134,22 @@ burrow_options_t burrow_get_options(burrow_st *burrow);
  * @param burrow Burrow object
  * @param option Option name
  * @param value  Option value, string
+ * @return 0 on success, errno result otherwise (e.g., EINVAL)
  */
 BURROW_API
-burrow_result_t burrow_backend_set_option(burrow_st *burrow, const char *option, const char *value);
+int burrow_set_backend_option(burrow_st *burrow, const char *option, const char *value);
 
 /**
- * Sets an integer backend option.
+ * Sets an integer backend option. If the specified option doesn't exist,
+ * EINVAL will be returned.
  *
  * @param burrow Burrow object
  * @param option Option name
  * @param value  Option value, int32
+ * @return 0 on success, errno result otherwise (e.g., EINVAL)
  */
 BURROW_API
-burrow_result_t burrow_backend_set_option_int(burrow_st *burrow, const char *option, int32_t value);
-
+int burrow_set_backend_option_int(burrow_st *burrow, const char *option, int32_t value);
 
 /**
  * Sets the message-received callback. Called once per message received.
@@ -258,16 +248,18 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func);
  * @param message_id Message id
  * @param body The message body
  * @param body_size The size of the message body in bytes
- * @param attributes Message attributes (ignored if NULL)
+ * @param attributes Message attributes, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_create_message(burrow_st *burrow,
-                                      const char *account, 
-                                      const char *queue, 
-                                      const char *message_id,
-                                      const uint8_t *body,
-                                      size_t body_size,
-                                      const burrow_attributes_st *attributes);
+int burrow_create_message(burrow_st *burrow,
+                          const char *account, 
+                          const char *queue, 
+                          const char *message_id,
+                          const uint8_t *body,
+                          size_t body_size,
+                          const burrow_attributes_st *attributes);
 
 
 /**
@@ -280,15 +272,17 @@ burrow_result_t burrow_create_message(burrow_st *burrow,
  * @param account Account name
  * @param queue Queue name
  * @param message_id Message id
- * @param attributes Message attributes; must not be NULL
+ * @param attributes Message attributes
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_update_message(burrow_st *burrow,
-                                      const char *account,
-                                      const char *queue,
-                                      const char *message_id,
-                                      const burrow_attributes_st *attributes,
-                                      const burrow_filters_st *filters);
+int burrow_update_message(burrow_st *burrow,
+                          const char *account,
+                          const char *queue,
+                          const char *message_id,
+                          const burrow_attributes_st *attributes,
+                          const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_message command.
@@ -300,13 +294,15 @@ burrow_result_t burrow_update_message(burrow_st *burrow,
  * @param account Account name
  * @param queue Queue name
  * @param message_id Message id
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_get_message(burrow_st *burrow,
-                                   const char *account,
-                                   const char *queue,
-                                   const char *message_id,
-                                   const burrow_filters_st *filters);
+int burrow_get_message(burrow_st *burrow,
+                       const char *account,
+                       const char *queue,
+                       const char *message_id,
+                       const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_message command.
@@ -318,13 +314,15 @@ burrow_result_t burrow_get_message(burrow_st *burrow,
  * @param account Account name
  * @param queue Queue name
  * @param message_id Message id
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_delete_message(burrow_st *burrow,
-                                      const char *account,
-                                      const char *queue,
-                                      const char *message_id,
-                                      const burrow_filters_st *filters);
+int burrow_delete_message(burrow_st *burrow,
+                          const char *account,
+                          const char *queue,
+                          const char *message_id,
+                          const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_messages command.
@@ -335,13 +333,15 @@ burrow_result_t burrow_delete_message(burrow_st *burrow,
  * @param burrow Burrow object
  * @param account Account name
  * @param queue Queue name
- * @param filters Filters to apply (may be NULL)
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_get_messages(burrow_st *burrow,
-                                    const char *account,
-                                    const char *queue,
-                                    const burrow_filters_st *filters);
+int burrow_get_messages(burrow_st *burrow,
+                        const char *account,
+                        const char *queue,
+                        const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_messages command.
@@ -349,16 +349,18 @@ burrow_result_t burrow_get_messages(burrow_st *burrow,
  * If burrow is already issuing a command, this will fail and trigger
  * a warning.
  *
- * @param burrow Burrow object
- * @param account Account name
- * @param queue Queue name
- * @param filters Filters to apply (may be NULL)
+ * @param burrow Burrow object, non-NULL
+ * @param account Account name, non-NULL
+ * @param queue Queue name, non-NULL
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_delete_messages(burrow_st *burrow,
-                                       const char *account,
-                                       const char *queue,
-                                       const burrow_filters_st *filters);
+int burrow_delete_messages(burrow_st *burrow,
+                           const char *account,
+                           const char *queue,
+                           const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue an update_messages command.
@@ -369,15 +371,17 @@ burrow_result_t burrow_delete_messages(burrow_st *burrow,
  * @param burrow Burrow object
  * @param account Account name
  * @param queue Queue name
- * @param attributes Attributes to set; must not be null
- * @param filters Filters to apply (may be NULL)
+ * @param attributes Attributes to set
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_update_messages(burrow_st *burrow,
-                                       const char *account,
-                                       const char *queue,
-                                       const burrow_attributes_st *attributes,
-                                       const burrow_filters_st *filters);
+int burrow_update_messages(burrow_st *burrow,
+                           const char *account,
+                           const char *queue,
+                           const burrow_attributes_st *attributes,
+                           const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_queues command.
@@ -387,12 +391,14 @@ burrow_result_t burrow_update_messages(burrow_st *burrow,
  *
  * @param burrow Burrow object
  * @param account Account name
- * @param filters Filters to apply (may be NULL)
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_get_queues(burrow_st *burrow,
-                                  const char *account,
-                                  const burrow_filters_st *filters);
+int burrow_get_queues(burrow_st *burrow,
+                      const char *account,
+                      const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_queues command.
@@ -402,12 +408,14 @@ burrow_result_t burrow_get_queues(burrow_st *burrow,
  *
  * @param burrow Burrow object
  * @param account Account name
- * @param filters Filters to apply (may be NULL)
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_delete_queues(burrow_st *burrow,
-                                     const char *account,
-                                     const burrow_filters_st *filters);
+int burrow_delete_queues(burrow_st *burrow,
+                         const char *account,
+                         const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a get_accounts command.
@@ -416,10 +424,12 @@ burrow_result_t burrow_delete_queues(burrow_st *burrow,
  * a warning.
  *
  * @param burrow Burrow object
- * @param filters Filters to apply (may be NULL)
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters);
+int burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters);
 
 /**
  * Sets up burrow to issue a delete_accounts command.
@@ -428,15 +438,16 @@ burrow_result_t burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *
  * a warning.
  *
  * @param burrow Burrow object
- * @param filters Filters to apply (may be NULL)
+ * @param filters Filters to apply, may be NULL
+ * @return 0 on command completion or an errno value on error, such as
+ *         EINPROGRESS or EINVAL
  */
 BURROW_API
-burrow_result_t burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters);
+int burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters);
 
 /**
  * Cancels an ongoing command. 
  * Will trigger a command-complete callback if any command is pending.
- * TODO: Should trigger a command complete call always?
  *
  * @param burrow Burrow object
  */
@@ -451,9 +462,11 @@ void burrow_cancel(burrow_st *burrow);
  * been issues which it can continue processing.
  *
  * @param burrow Burrow object
+ * @return 0 on command completion, EAGAIN if burrow would block,
+ *         or another error code if an error occurred
  */
 BURROW_API
-burrow_result_t burrow_process(burrow_st *burrow);
+int burrow_process(burrow_st *burrow);
 
 /**
  * Notify burrow that an event has occurred on a given file descriptor.
@@ -465,7 +478,7 @@ burrow_result_t burrow_process(burrow_st *burrow);
  * @param event Which event(s) occurred
  */
 BURROW_API
-burrow_result_t burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
+int burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
 
 /**
  * Returns a string describing the verbosity level. Useful for logging.

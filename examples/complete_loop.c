@@ -135,8 +135,8 @@ int main(int argc, char **argv)
   } else {
     burrow = burrow_create(NULL, "http");
     printf("burrow = %p\n", burrow);
-    burrow_backend_set_option(burrow, "server", "localhost");
-    burrow_backend_set_option(burrow, "port", "8080");
+    burrow_set_backend_option(burrow, "server", "localhost");
+    burrow_set_backend_option(burrow, "port", "8080");
   }
 
   burrow_set_context(burrow, &client);
@@ -159,10 +159,10 @@ int main(int argc, char **argv)
   printf("Ok, now let us see what messages the server has\n");
   /* Now see what the server has */
   burrow_get_messages(burrow, client.account, client.queue, NULL);
-  burrow_result_t result;
+  int result;
   do {
     result = burrow_process(burrow);
-  } while (result != BURROW_OK);
+  } while (result != 0);
 
   /* Now get the first message */
   {

@@ -77,10 +77,10 @@ static inline void burrow_free(burrow_st *burrow, void *ptr)
     free(ptr);
 }
 
-static inline void burrow_error(burrow_st *burrow, burrow_result_t error, const char *msg, ...)
+static inline void burrow_error(burrow_st *burrow, int err, const char *msg, ...)
 {
   va_list args;
-  (void) error;
+  (void) err;
 
   if (burrow->verbose <= BURROW_VERBOSE_ERROR) {
     va_start(args, msg);

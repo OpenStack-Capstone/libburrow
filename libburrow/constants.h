@@ -99,19 +99,6 @@ typedef enum {
   BURROW_IOEVENT_ALL   = BURROW_IOEVENT_WRITE | BURROW_IOEVENT_READ
 } burrow_ioevent_t;
 
-typedef enum {
-  BURROW_OK = 0,
-  BURROW_OK_WAITING,
-  BURROW_ERROR_NOT_READY,
-  BURROW_ERROR_MEMORY,
-  BURROW_ERROR_CONNECTION,
-  BURROW_ERROR_BAD_ARGS,
-  BURROW_ERROR_SERVER,
-  BURROW_ERROR_INTERNAL,
-  BURROW_ERROR_UNSUPPORTED,
-  BURROW_FATAL
-} burrow_result_t;
-
 /* Used publicly */
 typedef struct burrow_filters_st burrow_filters_st;
 typedef struct burrow_attributes_st burrow_attributes_st;
@@ -148,13 +135,14 @@ typedef void (burrow_backend_destroy_fn)(void *backend);
 typedef size_t (burrow_backend_size_fn)(void);
 typedef void *(burrow_backend_clone_fn)(void *dst, void *src);
 
-typedef burrow_result_t (burrow_backend_set_option_fn)(void *backend, const char *key, const char *value);
+typedef int (burrow_backend_set_option_fn)(void *backend, const char *key, const char *value);
+typedef int (burrow_backend_set_option_int_fn)(void *backend, const char *key, const char *value);
 
 typedef void (burrow_backend_cancel_fn)(void *backend);
-typedef burrow_result_t (burrow_backend_process_fn)(void *backend);
-typedef burrow_result_t (burrow_backend_event_raised_fn)(void *backend, int fd, burrow_ioevent_t event);
+typedef int (burrow_backend_process_fn)(void *backend);
+typedef int (burrow_backend_event_raised_fn)(void *backend, int fd, burrow_ioevent_t event);
 
-typedef burrow_result_t (burrow_backend_command_fn)(void *backend, const burrow_command_st *command);
+typedef int (burrow_backend_command_fn)(void *backend, const burrow_command_st *command);
 
 #ifdef __cplusplus
 }

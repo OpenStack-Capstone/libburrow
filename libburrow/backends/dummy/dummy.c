@@ -192,12 +192,12 @@ static void *burrow_backend_dummy_clone(void *dst, void *src)
   return NULL;
 }
 
-static burrow_result_t burrow_backend_dummy_set_option(void *ptr, const char *key, const char *value)
+static int burrow_backend_dummy_set_option(void *ptr, const char *key, const char *value)
 {
   (void) ptr;
   (void) key;
   (void) value;
-  return BURROW_ERROR_UNSUPPORTED;
+  return EINVAL;
 }
 
 static void burrow_backend_dummy_cancel(void *ptr)
@@ -205,89 +205,89 @@ static void burrow_backend_dummy_cancel(void *ptr)
   (void) ptr;
 }
 
-static burrow_result_t burrow_backend_dummy_process(void *ptr)
+static int burrow_backend_dummy_process(void *ptr)
 {
   (void) ptr;
-  return BURROW_OK;
+  return 0;
 }
 
 
-static burrow_result_t burrow_backend_dummy_event_raised(void *ptr, int fd, burrow_ioevent_t event)
+static int burrow_backend_dummy_event_raised(void *ptr, int fd, burrow_ioevent_t event)
 {
   (void) ptr;
   (void) fd;
   (void) event;
   
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_get_accounts(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_get_accounts(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
 
   if (!search_matches(dummy, NULL, NULL, NULL, cmd->filters))
-    return BURROW_OK;
+    return 0;
 
   burrow_callback_account(dummy->burrow, dummy->account);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_delete_accounts(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_delete_accounts(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   (void) cmd;
   
   dummy_free_internals(dummy);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_get_queues(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_get_queues(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   
   if (!search_matches(dummy, cmd->account, NULL, NULL, cmd->filters))
-    return BURROW_OK;
+    return 0;
 
   burrow_callback_queue(dummy->burrow, dummy->queue);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_delete_queues(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_delete_queues(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
 
   if (!search_matches(dummy, cmd->account, NULL, NULL, cmd->filters))
-    return BURROW_OK;
+    return 0;
   
   dummy_free_internals(dummy);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_get_messages(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_get_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* get_messages default detail is DETAIL_ALL */
   burrow_detail_t detail = (cmd->filters && (cmd->filters->set & BURROW_FILTERS_DETAIL) ? cmd->filters->detail : BURROW_DETAIL_ALL);
   
   if (!search_matches(dummy, cmd->account, cmd->queue, NULL, cmd->filters))
-    return BURROW_OK;
+    return 0;
     
   message_with_detail(dummy, detail);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_delete_messages(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_delete_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
 
   if (!search_matches(dummy, cmd->account, cmd->queue, NULL, cmd->filters))
-    return BURROW_OK;
+    return 0;
 
   dummy_free_internals(dummy);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_update_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* update_messages default detail is DETAIL_ATTRIBUTES */
@@ -295,10 +295,10 @@ static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const bur
   time_t curtime = time(NULL);
 
   if (!cmd->attributes)
-    return BURROW_OK;
+    return 0;
   
   if (!search_matches(dummy, cmd->account, cmd->queue, NULL, cmd->filters))
-    return BURROW_OK;
+    return 0;
     
   if (cmd->attributes->set & BURROW_ATTRIBUTES_TTL)
     dummy->ttl = curtime + cmd->attributes->ttl;
@@ -311,34 +311,34 @@ static burrow_result_t burrow_backend_dummy_update_messages(void *ptr, const bur
   }
     
   message_with_detail(dummy, detail);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_get_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_get_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* get_message default detail is DETAIL_ALL */
   burrow_detail_t detail = (cmd->filters && (cmd->filters->set & BURROW_FILTERS_DETAIL) ? cmd->filters->detail : BURROW_DETAIL_ALL);
   
   if (!search_matches(dummy, cmd->account, cmd->queue, cmd->message_id, NULL))
-    return BURROW_OK;
+    return 0;
     
   message_with_detail(dummy, detail);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_delete_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_delete_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   
   if (!search_matches(dummy, cmd->account, cmd->queue, cmd->message_id, NULL))
-    return BURROW_OK;
+    return 0;
 
   dummy_free_internals(dummy);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_update_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_update_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_dummy_st *dummy = (burrow_backend_dummy_st *)ptr;
   /* update_message default detail is DETAIL_ATTRIBUTES */
@@ -346,10 +346,10 @@ static burrow_result_t burrow_backend_dummy_update_message(void *ptr, const burr
   time_t curtime = time(NULL);
 
   if (!cmd->attributes)
-    return BURROW_OK;
+    return 0;
   
   if (!search_matches(dummy, cmd->account, cmd->queue, cmd->message_id, cmd->filters))
-    return BURROW_OK;
+    return 0;
     
   if (cmd->attributes->set & BURROW_ATTRIBUTES_TTL)
     dummy->ttl = curtime + cmd->attributes->ttl;
@@ -362,10 +362,10 @@ static burrow_result_t burrow_backend_dummy_update_message(void *ptr, const burr
   }
     
   message_with_detail(dummy, detail);
-  return BURROW_OK;
+  return 0;
 }
 
-static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_dummy_create_message(void *ptr, const burrow_command_st *cmd)
 {
   const char *account = cmd->account;
   const char *queue = cmd->queue;
@@ -395,8 +395,8 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const burr
     burrow_free(dummy->burrow, id_copy);
     burrow_free(dummy->burrow, account_copy);
     burrow_free(dummy->burrow, queue_copy);
-    burrow_error(dummy->burrow, BURROW_ERROR_MEMORY, "burrow_backend_dummy_create_message: malloc failed");
-    return BURROW_ERROR_MEMORY;
+    burrow_error(dummy->burrow, ENOMEM, "burrow_backend_dummy_create_message: malloc failed");
+    return ENOMEM;
   }
 
   dummy_free_internals(dummy);
@@ -427,7 +427,7 @@ static burrow_result_t burrow_backend_dummy_create_message(void *ptr, const burr
     dummy->ttl = curtime + 60 * 5; /* five minutes */
   }
     
-  return BURROW_OK;
+  return 0;
 }
 
 /* This is the structure that the frontend will use to access our

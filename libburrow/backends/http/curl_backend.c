@@ -44,7 +44,7 @@ struct burrow_backend_st {
 };
 //typedef struct burrow_backend_st burrow_backend_t;
 
-static burrow_result_t burrow_backend_http_process(void *ptr);
+static int burrow_backend_http_process(void *ptr);
 
 #include "curl_backend.h"
 
@@ -205,7 +205,7 @@ burrow_backend_http_clone(void *dst, void*src)
   return NULL;
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_set_option(void *ptr,
 			       const char *optionname, const char *value)
 {
@@ -219,11 +219,8 @@ burrow_backend_http_set_option(void *ptr,
     backend->port = strdup(value);
     url_affecting = 1;
   } else {
-    burrow_error(backend->burrow,
-		 BURROW_ERROR_UNSUPPORTED,
-		 "ERROR: Called set_option with illegal option: %s\n",
-		 optionname);
-    return BURROW_ERROR_UNSUPPORTED;
+    burrow_log_warn(backend->burrow, "Called set_option with illegal option: %s\n", optionname);
+    return EINVAL;
   }
 
   if ((url_affecting) && (backend->server != 0) && (backend->port != 0) &&
@@ -240,11 +237,11 @@ burrow_backend_http_set_option(void *ptr,
 	      backend->port
 	      );
     }
-  return BURROW_OK;
+  return 0;
 }
 
 
-static burrow_result_t
+static int
 burrow_backend_http_create_message(void *ptr,
 				   const burrow_command_st *cmd)
 {
@@ -306,7 +303,7 @@ burrow_backend_http_create_message(void *ptr,
   return burrow_backend_http_process((void*)backend);
 }
   
-static burrow_result_t
+static int
 burrow_backend_http_process(void *ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   CURLMcode retval;
@@ -321,11 +318,11 @@ burrow_backend_http_process(void *ptr) {
 
   if (retval != CURLM_OK) {
     // it appears some kind of error occured...
-    burrow_error(backend->burrow, BURROW_ERROR_SERVER,
+    burrow_error(backend->burrow, EINVAL,
 		 "Call to libcurl failed(%d): %s\n",
 		 retval,
 		 curl_multi_strerror(retval));
-    return BURROW_ERROR_SERVER;
+    return EINVAL;
   }
   // At this point, the curl_multi interface didn't have a problem,
   // However, there could still have been errors on transfer...
@@ -334,11 +331,11 @@ burrow_backend_http_process(void *ptr) {
   curlmsg = curl_multi_info_read(backend->curlptr, &msgs_in_queue);
   while (curlmsg != NULL) {
     if (curlmsg->data.result != CURLE_OK) {
-      burrow_error(backend->burrow, BURROW_ERROR_SERVER,
+      burrow_error(backend->burrow, EINVAL,
 		   "Error transferring (%d): %s\n",
 		   curlmsg->data.result,
 		   curl_easy_strerror(curlmsg->data.result));
-      return BURROW_ERROR_SERVER;
+      return EINVAL;
     } else {
       burrow_log_debug(backend->burrow,
 		       "Transfer completed successfully\n");
@@ -357,7 +354,7 @@ burrow_backend_http_process(void *ptr) {
       curl_multi_fdset(backend->curlptr, &read_fd_set,
 		       &write_fd_set, &exec_fd_set, &max_fd);
     if (max_fd == -1)
-      return BURROW_OK;
+      return 0;
     for (int i = 0; i <= max_fd; ++i) {
       burrow_ioevent_t burrow_event = BURROW_IOEVENT_NONE;
       if (FD_ISSET(i, &read_fd_set))
@@ -366,14 +363,14 @@ burrow_backend_http_process(void *ptr) {
 	burrow_event |= BURROW_IOEVENT_WRITE;
       if (FD_ISSET(i, &exec_fd_set))
 	burrow_error(backend->burrow,
-		     BURROW_ERROR_BAD_ARGS,
+		     ENOTSUP,
 		     "ERROR! libcurl wants to monitor exceptions on file_descriptor=%d, not presently supported",
 		     i);
       if (burrow_event != BURROW_IOEVENT_NONE) {
 	burrow_watch_fd(backend->burrow, i, burrow_event);
       }
     }
-    return BURROW_OK_WAITING;
+    return EAGAIN;
   } else {
     /* this should mean I have retrieved everything I need... I hope.
        therefore, process it.  The problem is, different commands can
@@ -417,7 +414,7 @@ burrow_backend_http_process(void *ptr) {
 	    if (json_return < 0) {
 	      // apparently an error occured.
 	      burrow_error(backend->burrow,
-			   BURROW_ERROR_SERVER,
+			   EINVAL,
 			   "Error occured while trying to parse JSON message: \"%s\"\n",
 			   user_buffer_get_text(backend->buffer)
 			   );
@@ -425,11 +422,11 @@ burrow_backend_http_process(void *ptr) {
 	    }
 	  }
       }
-    return BURROW_OK;
+    return 0;
   }
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_event_raised(void *ptr,
 				 int fd,
 				 burrow_ioevent_t event)
@@ -442,7 +439,7 @@ burrow_backend_http_event_raised(void *ptr,
   (void)ptr;
   (void)fd;
   (void)event;
-  return BURROW_OK;
+  return 0;
 }
 
 /**
@@ -450,9 +447,9 @@ burrow_backend_http_event_raised(void *ptr,
  *
  * @param ptr the burrow_back_t pointer
  * @param cmd the burrow_command_st structure, which tells us what we must do.
- * @return burrow_result_t which tells us if it is complete or still working.
+ * @return int which tells us if it is complete or still working.
  */
-static burrow_result_t
+static int
 burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
@@ -524,14 +521,14 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
   return burrow_backend_http_process(backend);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_get_accounts(void* ptr,
 				 const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getlists(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getlists(ptr, cmd);
@@ -540,7 +537,7 @@ burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
 /**
  * common code for deleting queues or accounts
  */
-static burrow_result_t
+static int
 burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
@@ -616,13 +613,13 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   return burrow_backend_http_process(backend);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_delete_accounts(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_delete(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_delete(ptr, cmd);
@@ -632,7 +629,7 @@ burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
  * Performs anything that can get a message(s).  That includes get_message,
  * update_message and delete_message
  */
-static burrow_result_t
+static int
 burrow_backend_http_common_getting(void *ptr,
 				   const burrow_command_st *cmd)
 {  
@@ -773,37 +770,37 @@ burrow_backend_http_common_getting(void *ptr,
   return burrow_backend_http_process(backend);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_delete_message(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_delete_messages(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_get_message(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_update_message(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
-static burrow_result_t
+static int
 burrow_backend_http_update_messages(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);

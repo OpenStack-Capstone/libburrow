@@ -298,8 +298,8 @@ int main(void)
     if (burrow_get_context(burrow) != client)
       burrow_test_error("failed");
 
-    burrow_backend_set_option(burrow, "server", "localhost");
-    burrow_backend_set_option(burrow, "port", "8080");
+    burrow_set_backend_option(burrow, "server", "localhost");
+    burrow_set_backend_option(burrow, "port", "8080");
 
     burrow_set_malloc_fn(burrow, &custom_malloc);
     burrow_set_free_fn(burrow, &custom_free);

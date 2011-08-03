@@ -142,7 +142,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 	    jproc->body_size = strlen(value->vu.str.value);
 	  } else {
 	    burrow_error(burrow_backend_http_get_burrow(jproc->backend),
-			 BURROW_ERROR_SERVER,
+			 EINVAL,
 			 "ERROR!  unrecognized string valued key \"%s\"=\"%s\"\n", jproc->key, value->vu.str.value);
 	    return 0;
 	  }
@@ -163,7 +163,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 				      (uint32_t)value->vu.integer_value);
 	  } else {
 	     burrow_error(burrow_backend_http_get_burrow(jproc->backend),
-			  BURROW_ERROR_SERVER,
+			  EINVAL,
 			  "WARNING! JSON parsing found unrecognized integer key \"%s\"=%d\n",
 			  jproc->key, value->vu.integer_value);
 	    return 0;
@@ -172,7 +172,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 	break;
       default:
 	burrow_error(burrow_backend_http_get_burrow(jproc->backend),
-		     BURROW_ERROR_SERVER,
+		     EINVAL,
 		     "WARNING! JSON parsing found unexpected type = %d\n",
 		     type);
 	return 0;
@@ -207,7 +207,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 	break;
       default:
 	burrow_error(burrow_backend_http_get_burrow(jproc->backend),
-		     BURROW_ERROR_SERVER,
+		     EINVAL,
 		     "WARNING! JSON parsing found unexpected type = %d\n",
 		     type);
 
@@ -252,7 +252,7 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
     int nextchar = jsontext[i];
     if ((retval = JSON_parser_char(jc, nextchar)) <= 0) {
       burrow_error(burrow_backend_http_get_burrow(backend),
-		   BURROW_ERROR_SERVER,
+		   EINVAL,
 		   "WARNING! JSON_parser_char (%d) at byte %d (%d = '%c')\n",
 		   retval, i, (int)nextchar, nextchar);
       return -1;
@@ -260,7 +260,7 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
   }    
   if (!JSON_parser_done(jc)) {
     burrow_error(burrow_backend_http_get_burrow(backend),
-		 BURROW_ERROR_SERVER,
+		 EINVAL,
 		 "WARNING! JSON_parser_end indicates JSON syntax error\n");
     delete_JSON_parser(jc);
     burrow_easy_json_st_destroy(json_processing);

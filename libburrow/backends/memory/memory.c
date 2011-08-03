@@ -83,7 +83,7 @@ static burrow_filters_st* _process_filter(burrow_backend_memory_st* self, const 
   return out_filters;
 }
 /*********************************************************************************************************************/
-static burrow_result_t _scan_queue(burrow_backend_memory_st* self, const burrow_command_st* cmd, scan_action_t scan_type, delete_action_t delete_action)
+static int _scan_queue(burrow_backend_memory_st* self, const burrow_command_st* cmd, scan_action_t scan_type, delete_action_t delete_action)
 {
   /*  Get current time (messages'ttl/hide are relative to "now" = the current time when this function is called)
    Get the appropriate account and queue.*/
@@ -91,11 +91,11 @@ static burrow_result_t _scan_queue(burrow_backend_memory_st* self, const burrow_
   
   account_st* account = get(self->accounts, cmd->account, SEARCH);
   if(!account)
-    return BURROW_OK;
+    return 0;
   
   queue_st* queue = get(account->data, cmd->queue, SEARCH);
   if(!queue)
-    return BURROW_OK;
+    return 0;
   
   /*  validate incoming attributes (only relevant if updating messages' ttl/hide)*/
   burrow_attributes_st reference_attributes;
@@ -114,14 +114,14 @@ static burrow_result_t _scan_queue(burrow_backend_memory_st* self, const burrow_
   if(!ref_filters)
   {
     burrow_log_error(self->burrow, "custom malloc failed in memory.c: _scan_queue()");
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_st* iterator = iter(queue->data, ref_filters->marker, ref_filters->limit);
   if(!iterator)
   {
     burrow_free(self->burrow, ref_filters);
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_node_st* item = iterator->first;
@@ -220,37 +220,37 @@ static burrow_result_t _scan_queue(burrow_backend_memory_st* self, const burrow_
   if(!((dictionary_st*)(account->data))->length)
     delete_node(self->accounts, cmd->account);
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
 
 /*********INTERFACE****************************************************************************************************/
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_get_queues(void* ptr, const burrow_command_st* cmd)
+static int burrow_backend_memory_get_queues(void* ptr, const burrow_command_st* cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   
   account_st* account = (get(self->accounts, cmd->account, SEARCH));
   if(!account)
-    return BURROW_OK;
+    return 0;
   
   queues_st* queues = account->data;
   if(!queues)
-    return BURROW_OK;
+    return 0;
   
   burrow_filters_st* ref_filters = _process_filter(self, cmd->filters);
   if(!ref_filters)
   {
     burrow_log_error(self->burrow, "custom malloc failed in memory.c: _scan_queue()");
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_st* iterator = iter(queues, ref_filters->marker, ref_filters->limit);
   if(!iterator)
   {
     burrow_free(self->burrow, ref_filters);
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_node_st* item = iterator->first;
@@ -266,33 +266,33 @@ static burrow_result_t burrow_backend_memory_get_queues(void* ptr, const burrow_
   delete(iterator, NULL, iterator->length);
   burrow_free(self->burrow, iterator);
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_delete_queues(void* ptr, const burrow_command_st* cmd)
+static int burrow_backend_memory_delete_queues(void* ptr, const burrow_command_st* cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   
   account_st* account = get(self->accounts, cmd->account, SEARCH);
   if(!account)
-    return BURROW_OK;
+    return 0;
   
   queues_st* queues = account->data;
   if(!queues)
-    return BURROW_OK;
+    return 0;
   
   burrow_filters_st* ref_filters = _process_filter(self, cmd->filters);
   if(!ref_filters)
   {
     burrow_log_error(self->burrow, "custom malloc failed in memory.c: _scan_queue()");
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_st* iterator = iter(queues, ref_filters->marker, ref_filters->limit);
   if(!iterator)
   {
     burrow_free(self->burrow, ref_filters);
-    return BURROW_OK;
+    return 0;
   }
   
   burrow_command_st* erase_cmd = burrow_malloc(self->burrow, sizeof(burrow_command_st)); 
@@ -302,7 +302,7 @@ static burrow_result_t burrow_backend_memory_delete_queues(void* ptr, const burr
     burrow_free(self->burrow, ref_filters);
     delete(iterator, NULL, iterator->length);
     burrow_free(self->burrow, iterator);
-    return BURROW_OK;
+    return 0;
   }
   
   erase_cmd->filters = _process_filter(self, NULL);
@@ -313,7 +313,7 @@ static burrow_result_t burrow_backend_memory_delete_queues(void* ptr, const burr
     delete(iterator, NULL, iterator->length);
     burrow_free(self->burrow, iterator);
     burrow_free(self->burrow, erase_cmd);
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_node_st* item = iterator->first;
@@ -333,10 +333,10 @@ static burrow_result_t burrow_backend_memory_delete_queues(void* ptr, const burr
   burrow_free(self->burrow, (burrow_filters_st*)erase_cmd->filters);
   burrow_free(self->burrow, erase_cmd);
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_get_accounts(void* ptr, const burrow_command_st* cmd)
+static int burrow_backend_memory_get_accounts(void* ptr, const burrow_command_st* cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   
@@ -344,14 +344,14 @@ static burrow_result_t burrow_backend_memory_get_accounts(void* ptr, const burro
   if(!ref_filters)
   {
     burrow_log_error(self->burrow, "custom malloc failed in memory.c: _scan_queue()");
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_st* iterator = iter(self->accounts, ref_filters->marker, ref_filters->limit);
   if(!iterator)
   {
     burrow_free(self->burrow, ref_filters);
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_node_st* item = iterator->first;
@@ -367,10 +367,10 @@ static burrow_result_t burrow_backend_memory_get_accounts(void* ptr, const burro
   delete(iterator, NULL, iterator->length);
   burrow_free(self->burrow, iterator);
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_delete_accounts(void* ptr, const burrow_command_st* cmd)
+static int burrow_backend_memory_delete_accounts(void* ptr, const burrow_command_st* cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   
@@ -378,14 +378,14 @@ static burrow_result_t burrow_backend_memory_delete_accounts(void* ptr, const bu
   if(!ref_filters)
   {
     burrow_log_error(self->burrow, "custom malloc failed in memory.c: _scan_queue()");
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_st* iterator = iter(self->accounts, ref_filters->marker, ref_filters->limit);
   if(!iterator)
   {
     burrow_free(self->burrow, ref_filters);
-    return BURROW_OK;
+    return 0;
   }
   
   burrow_command_st* erase_cmd = burrow_malloc(self->burrow, sizeof(burrow_command_st)); 
@@ -395,7 +395,7 @@ static burrow_result_t burrow_backend_memory_delete_accounts(void* ptr, const bu
     burrow_free(self->burrow, ref_filters);
     delete(iterator, NULL, iterator->length);
     burrow_free(self->burrow, iterator);
-    return BURROW_OK;
+    return 0;
   }
   
   erase_cmd->filters = _process_filter(self, NULL);
@@ -406,7 +406,7 @@ static burrow_result_t burrow_backend_memory_delete_accounts(void* ptr, const bu
     delete(iterator, NULL, iterator->length);
     burrow_free(self->burrow, iterator);
     burrow_free(self->burrow, erase_cmd);
-    return BURROW_OK;
+    return 0;
   }
   
   dictionary_node_st* item = iterator->first;
@@ -425,34 +425,34 @@ static burrow_result_t burrow_backend_memory_delete_accounts(void* ptr, const bu
   burrow_free(self->burrow, (burrow_filters_st*)erase_cmd->filters);
   burrow_free(self->burrow, erase_cmd);
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_get_messages(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_memory_get_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;  
   
   _scan_queue(self, cmd, GET, REPORT);
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_update_messages(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_memory_update_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;  
   
   _scan_queue(self, cmd, UPDATE, REPORT);
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_delete_messages(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_memory_delete_messages(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;  
   
   _scan_queue(self, cmd, DELETE, REPORT);
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_create_message(void* ptr, const burrow_command_st* cmd)
+static int burrow_backend_memory_create_message(void* ptr, const burrow_command_st* cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   uint32_t creation_time = (uint32_t)time(NULL);
@@ -467,7 +467,7 @@ static burrow_result_t burrow_backend_memory_create_message(void* ptr, const bur
     burrow_free(self->burrow, new_message);
     burrow_free(self->burrow, body);
     burrow_free(self->burrow, message_id);
-    return BURROW_OK;
+    return 0;
   }
   
   memcpy(body, cmd->body, cmd->body_size);
@@ -493,7 +493,7 @@ static burrow_result_t burrow_backend_memory_create_message(void* ptr, const bur
     burrow_free(self->burrow, new_message);
     burrow_free(self->burrow, body);
     burrow_free(self->burrow, message_id);
-    return BURROW_OK;
+    return 0;
   }
   
   queue_st* queue = get(account->data, cmd->queue, CREATE);
@@ -505,7 +505,7 @@ static burrow_result_t burrow_backend_memory_create_message(void* ptr, const bur
     burrow_free(self->burrow, new_message);
     burrow_free(self->burrow, body);
     burrow_free(self->burrow, message_id);
-    return BURROW_OK;
+    return 0;
   }
   
   message_node_st* message_node = get(queue->data, new_message->message_id, SEARCH);
@@ -519,10 +519,10 @@ static burrow_result_t burrow_backend_memory_create_message(void* ptr, const bur
       if(!((dictionary_st*)(queue->data))->length)
         delete_node(account->data, cmd->queue);
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_update_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_memory_update_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr; 
   uint32_t current_time = (uint32_t)time(NULL);
@@ -548,7 +548,7 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
             if(!((dictionary_st*)(account->data))->length)
               delete_node(self->accounts, cmd->account);
             
-            return BURROW_OK;
+            return 0;
           }
           
           uint32_t attributes_ttl = 0;
@@ -574,13 +574,13 @@ static burrow_result_t burrow_backend_memory_update_message(void *ptr, const bur
           attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
           
           burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
-          return BURROW_OK;
+          return 0;
         }
   
-  return BURROW_ERROR_INTERNAL;
+  return EINVAL;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_get_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_memory_get_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr; 
   uint32_t current_time = (uint32_t)time(NULL);
@@ -606,7 +606,7 @@ static burrow_result_t burrow_backend_memory_get_message(void *ptr, const burrow
             if(!((dictionary_st*)(account->data))->length)
               delete_node(self->accounts, cmd->account);
             
-            return BURROW_OK;
+            return 0;
           }
           
           burrow_attributes_st attributes;
@@ -614,13 +614,13 @@ static burrow_result_t burrow_backend_memory_get_message(void *ptr, const burrow
           attributes.hide = (message->hide > current_time ? message->hide - current_time : 0);
           
           burrow_callback_message(self->burrow, message->message_id, message->body, message->body_size, &attributes);
-          return BURROW_OK;
+          return 0;
         }
   
-  return BURROW_ERROR_INTERNAL;
+  return EINVAL;
 }
 /*********************************************************************************************************************/
-static burrow_result_t burrow_backend_memory_delete_message(void *ptr, const burrow_command_st *cmd)
+static int burrow_backend_memory_delete_message(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_memory_st* self = (burrow_backend_memory_st*)ptr;
   uint32_t current_time = (uint32_t)time(NULL);
@@ -654,7 +654,7 @@ static burrow_result_t burrow_backend_memory_delete_message(void *ptr, const bur
             delete_node(self->accounts, cmd->account);
         }
   
-  return BURROW_OK;
+  return 0;
 }
 /*********************************************************************************************************************/
 static size_t burrow_backend_memory_size(void)
