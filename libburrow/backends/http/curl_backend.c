@@ -74,9 +74,9 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
   char buf[1024] = "";
   if (attributes == 0)
     return 0;
-  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
+  if (burrow_attributes_isset_ttl(attributes))
     sprintf(buf, "ttl=%ld", burrow_attributes_get_ttl(attributes));
-  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE)) {
+  if (burrow_attributes_isset_hide(attributes)) {
     if (strlen(buf) > 0)
       sprintf(buf + strlen(buf),"%s", "&");
     sprintf(buf + strlen(buf), "hide=%ld",
@@ -97,25 +97,25 @@ burrow_backend_http_filters_to_string(const burrow_filters_st *filters) {
   if (filters== 0)
     return 0;
 
-  if (burrow_filters_check(filters, BURROW_FILTERS_MATCH_HIDDEN)) {
+  if (burrow_filters_isset_match_hidden(filters)) {
     if (burrow_filters_get_match_hidden(filters) == true)
       sprintf(buf, "match_hidden=true");
     else 
       sprintf(buf, "match_hidden=false");
   }
-  if (burrow_filters_check(filters, BURROW_FILTERS_LIMIT)) {
+  if (burrow_filters_isset_limit(filters)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "limit=%d", burrow_filters_get_limit(filters));
   }
-  if (burrow_filters_check(filters, BURROW_FILTERS_MARKER)) {
+  if (burrow_filters_get_marker(filters) != NULL) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "marker=%s", burrow_filters_get_marker(filters));
   }
-  if (burrow_filters_check(filters, BURROW_FILTERS_WAIT)) {
+  if (burrow_filters_isset_wait(filters)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     sprintf(buf + strlen(buf), "wait=%d", burrow_filters_get_wait(filters));
   }
-  if (burrow_filters_check(filters, BURROW_FILTERS_DETAIL)) {
+  if (burrow_filters_isset_detail(filters)) {
     if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
     if (burrow_filters_get_detail(filters) == BURROW_DETAIL_NONE)
       sprintf(buf + strlen(buf), "detail=none");
@@ -649,7 +649,7 @@ burrow_backend_http_common_getting(void *ptr,
   char *attribute_str = 0;
 
   if ((filters) &&
-      (burrow_filters_check(filters, BURROW_FILTERS_DETAIL)) &&
+      (burrow_filters_isset_detail(filters)) &&
       (burrow_filters_get_detail(filters) == BURROW_DETAIL_BODY))
     backend->get_body_only = true;
   else

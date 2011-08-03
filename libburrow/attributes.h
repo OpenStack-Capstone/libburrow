@@ -81,44 +81,21 @@ BURROW_API
 void burrow_attributes_destroy(burrow_attributes_st *attributes);
 
 /**
- * "Unsets" fields in the provided attributes struct.
- * See burrow_attributes_set_t typedef.
+ * Unsets all fields in the attributes structure.
  *
- * @param filters attributes structure
- * @param unset bitfield of which attributes to unset
+ * @param attributes attributes structure
  */
 BURROW_API
-void burrow_attributes_unset(burrow_attributes_st *attributes, burrow_attributes_set_t set);
-
-/**
- * Checks if certain fields have been set in the attributes structure. Calls
- * to burrow_attributes_get functions may return erroneous/uninitialized values
- * otherwise, and so should be checked first.
- *
- * @param attributes attributes struct
- * @param set bitfield of which attributes to check
- * @return true if any of the specified attributes are set, false otherwise
- */
-BURROW_API
-bool burrow_attributes_check(const burrow_attributes_st *attributes, burrow_attributes_set_t set);
+void burrow_attributes_unset_all(burrow_attributes_st *attributes);
 
 /**
  * Sets the ttl attribute value.
  *
- * @param filters attributes struct
+ * @param attributes attributes struct
  * @param ttl ttl value
  */
 BURROW_API
 void burrow_attributes_set_ttl(burrow_attributes_st *attributes, uint32_t ttl);
-
-/**
- * Sets the hide attribute value.
- *
- * @param filters attributes struct
- * @param hide hide value
- */
-BURROW_API
-void burrow_attributes_set_hide(burrow_attributes_st *attributes, uint32_t hide);
 
 /**
  * Gets the ttl value. See burrow_attributes_check for more information
@@ -131,6 +108,32 @@ BURROW_API
 uint32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes);
 
 /**
+ * Unsets the ttl if set.
+ *
+ * @param attributes attributes structure
+ */
+BURROW_API
+void burrow_attributes_unset_ttl(burrow_attributes_st *attributes);
+
+/**
+ * Checks if the ttl is set.
+ *
+ * @param attributes attributes structure
+ * @return true if ttl is set, false otherwise
+ */
+BURROW_API
+bool burrow_attributes_isset_ttl(const burrow_attributes_st *attributes);
+
+/**
+ * Sets the hide attribute value.
+ *
+ * @param attributes attributes struct
+ * @param hide hide value
+ */
+BURROW_API
+void burrow_attributes_set_hide(burrow_attributes_st *attributes, uint32_t hide);
+
+/**
  * Gets the hide value. See burrow_attributes_check for more information
  * on retrieving attributes values.
  *
@@ -139,6 +142,23 @@ uint32_t burrow_attributes_get_ttl(const burrow_attributes_st *attributes);
  */
 BURROW_API
 uint32_t burrow_attributes_get_hide(const burrow_attributes_st *attributes);
+
+/**
+ * Checks if the hide is set.
+ *
+ * @param attributes attributes structure
+ * @return true if ttl is set, false otherwise
+ */
+BURROW_API
+bool burrow_attributes_isset_hide(const burrow_attributes_st *attributes);
+
+/**
+ * Unsets the hide if set.
+ *
+ * @param attributes attributes structure
+ */
+BURROW_API
+void burrow_attributes_unset_hide(burrow_attributes_st *attributes);
 
 #ifdef __cplusplus
 }

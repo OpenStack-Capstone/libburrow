@@ -70,7 +70,7 @@ nobase_include_HEADERS += \
 
 noinst_HEADERS = \
 	libburrow/common.h \
-	libburrow/structs-local.h \
+	libburrow/local.h \
 	libburrow/internal.h \
 	libburrow/macros.h \
 	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h \

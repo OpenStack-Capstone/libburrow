@@ -44,41 +44,45 @@ int main(void)
 
   /* Test default values */
   burrow_test("burrow_filters_check");
-  if (burrow_filters_check(filter, BURROW_FILTERS_ALL) != BURROW_FILTERS_NONE)
+  if (burrow_filters_isset_wait(filter) ||
+      burrow_filters_isset_limit(filter) ||
+      burrow_filters_isset_match_hidden(filter) ||
+      burrow_filters_isset_detail(filter) ||
+      burrow_filters_get_marker(filter) != NULL)
     burrow_test_error("badly initialized, some filters set")
   
   /* Test get/sets */
   burrow_test("burrow_filters marker set get");
   burrow_filters_set_marker(filter, MARKER);
-  if (burrow_filters_check(filter, BURROW_FILTERS_MARKER) == 0)
+  if (burrow_filters_get_marker(filter) == NULL)
     burrow_test_error("check failed");
   if (strcmp( (cchar = burrow_filters_get_marker(filter)), MARKER) != 0)
     burrow_test_error("expected '%s', got '%s'", MARKER, cchar);
 
   burrow_test("burrow_filters wait set get");
   burrow_filters_set_wait(filter, 100);
-  if (burrow_filters_check(filter, BURROW_FILTERS_WAIT) == 0)
+  if (burrow_filters_isset_wait(filter) != true)
     burrow_test_error("check failed");
   if ((i = burrow_filters_get_wait(filter)) != 100)
     burrow_test_error("expected 100, got %d", i);
 
   burrow_test("burrow_filters limit set get");
   burrow_filters_set_limit(filter, 220);
-  if (burrow_filters_check(filter, BURROW_FILTERS_LIMIT) == 0)
+  if (burrow_filters_isset_limit(filter) != true)
     burrow_test_error("check failed");
   if ((i = burrow_filters_get_limit(filter)) != 220)
     burrow_test_error("expected 220, got %d", i);
 
   burrow_test("burrow_filters match_hidden set get");
   burrow_filters_set_match_hidden(filter, true);
-  if (burrow_filters_check(filter, BURROW_FILTERS_MATCH_HIDDEN) == 0)
+  if (burrow_filters_isset_match_hidden(filter) != true)
     burrow_test_error("check failed");
   if (burrow_filters_get_match_hidden(filter) != true)
     burrow_test_error("expected true, got false");
 
   burrow_test("burrow_filters detail set get");
   burrow_filters_set_detail(filter, BURROW_DETAIL_ATTRIBUTES);
-  if (burrow_filters_check(filter, BURROW_FILTERS_DETAIL) == 0)
+  if (burrow_filters_isset_detail(filter) != true)
     burrow_test_error("check failed");
   if ((detail = burrow_filters_get_detail(filter)) != BURROW_DETAIL_ATTRIBUTES)
     burrow_test_error("expeted %d, got %d", (int)BURROW_DETAIL_ATTRIBUTES, (int)detail);

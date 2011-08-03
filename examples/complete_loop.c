@@ -71,9 +71,9 @@ static void _message(burrow_st * burrow,
 	  (message_id ? message_id : "UNSET"),
 	  body_size, (char *)body);
   if (attributes) {
-    if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
+    if (burrow_attributes_isset_ttl(attributes))
       fprintf(stderr, "\tttl = %d\n", burrow_attributes_get_ttl(attributes));
-    if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE))
+    if (burrow_attributes_isset_hide(attributes))
       fprintf(stderr, "\thide = %d\n", burrow_attributes_get_hide(attributes));
   }
 }

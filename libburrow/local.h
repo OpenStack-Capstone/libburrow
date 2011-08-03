@@ -18,12 +18,28 @@
 
 /**
  * @file
- * @brief Private structure definitions
+ * @brief Private structures / constants definitions
  */
 
 
-#ifndef __BURROW_STRUCTS_LOCAL_H
-#define __BURROW_STRUCTS_LOCAL_H
+#ifndef __BURROW_LOCAL_H
+#define __BURROW_LOCAL_H
+
+typedef enum {
+  BURROW_ATTRIBUTES_NONE = 0,
+  BURROW_ATTRIBUTES_TTL  = (1 << 0),
+  BURROW_ATTRIBUTES_HIDE = (1 << 1),
+  BURROW_ATTRIBUTES_ALL = ~BURROW_ATTRIBUTES_NONE
+} burrow_attributes_set_t;
+
+typedef enum {
+  BURROW_FILTERS_NONE         = 0,
+  BURROW_FILTERS_MATCH_HIDDEN = (1 << 0),
+  BURROW_FILTERS_LIMIT        = (1 << 1),
+  BURROW_FILTERS_DETAIL       = (1 << 2),
+  BURROW_FILTERS_WAIT         = (1 << 3),
+  BURROW_FILTERS_ALL = ~BURROW_FILTERS_NONE
+} burrow_filters_set_t;
 
 /* Private */
 struct burrow_command_st
@@ -142,4 +158,4 @@ struct burrow_st {
   burrow_filters_st *filters_list;
 };
 
-#endif /* __BURROW_STRUCTS_LOCAL_H */
+#endif /* __BURROW_LOCAL_H */

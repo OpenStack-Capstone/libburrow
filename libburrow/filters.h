@@ -81,25 +81,14 @@ BURROW_API
 void burrow_filters_destroy(burrow_filters_st *filters);
 
 /**
- * "Unsets" fields in the provided filters struct. See burrow_filters_set_t typedef.
+ * Unsets all fields in the filters structure.
  *
- * @param filters filters struct
- * @param unset bitfield of which filters to unset
+ * @param filters filters structure
  */
 BURROW_API
-void burrow_filters_unset(burrow_filters_st *filters, burrow_filters_set_t unset);
+void burrow_filters_unset_all(burrow_filters_st *filters);
 
-/**
- * Checks if certain fields have been set in the filters structure. Calls
- * to burrow_filters_get functions may return erroneous/uninitialized values
- * otherwise, and so should be checked first.
- *
- * @param filters filters struct
- * @param set bitfield of which filters to check
- * @return true if any of the specified filters are set, false otherwise
- */
-BURROW_API
-bool burrow_filters_check(const burrow_filters_st *filters, burrow_filters_set_t set);
+
 
 /**
  * Sets the match_hidden filter value.
@@ -111,14 +100,33 @@ BURROW_API
 void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidden);
 
 /**
- * Sets the marker filter. Note: If marker_id is NULL, then calling this function
- * is the same as unsetting the marker.
+ * Gets the match_hidden filter value. Behavior is undefined if
+ * match_hidden is not set.
  *
  * @param filters filters struct
- * @param marker_id null-terminated marker-id
+ * @return the value of the match_hidden filter
  */
 BURROW_API
-void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id);
+bool burrow_filters_get_match_hidden(const burrow_filters_st *filters);
+
+/**
+ * Checks if match hidden is set.
+ *
+ * @param filters filters struct
+ * @return true if field is set, false otherwise
+ */
+BURROW_API
+bool burrow_filters_isset_match_hidden(const burrow_filters_st *filters);
+
+/**
+ * Unsets the match hidden filter parameter.
+ *
+ * @param filters filters struct
+ */
+BURROW_API
+void burrow_filters_unset_match_hidden(burrow_filters_st *filters);
+
+
 
 /**
  * Sets the limit filter.
@@ -130,6 +138,35 @@ BURROW_API
 void burrow_filters_set_limit(burrow_filters_st *filters, uint32_t limit);
 
 /**
+ * Gets the limit filter value. Behavior is undefined if
+ * limit is not set.
+ *
+ * @param filters filters struct
+ * @return the value of the filter
+ */
+BURROW_API
+uint32_t burrow_filters_get_limit(const burrow_filters_st *filters);
+
+/**
+ * Checks if limit is set.
+ *
+ * @param filters filters struct
+ * @return true if field is set, false otherwise
+ */
+BURROW_API
+bool burrow_filters_isset_limit(const burrow_filters_st *filters);
+
+/**
+ * Unsets the limit filter parameter.
+ *
+ * @param filters filters struct
+ */
+BURROW_API
+void burrow_filters_unset_limit(burrow_filters_st *filters);
+
+
+
+/**
  * Sets the wait filter.
  *
  * @param filters filters struct
@@ -137,6 +174,35 @@ void burrow_filters_set_limit(burrow_filters_st *filters, uint32_t limit);
  */
 BURROW_API
 void burrow_filters_set_wait(burrow_filters_st *filters, uint32_t wait_time);
+
+/**
+ * Gets the wait filter value. Behavior is undefined if
+ * wait is not set.
+ *
+ * @param filters filters struct
+ * @return the value of the filter
+ */
+BURROW_API
+uint32_t burrow_filters_get_wait(const burrow_filters_st *filters);
+
+/**
+ * Checks if wait is set.
+ *
+ * @param filters filters struct
+ * @return true if field is set, false otherwise
+ */
+BURROW_API
+bool burrow_filters_isset_wait(const burrow_filters_st *filters);
+
+/**
+ * Unsets the wait filter parameter.
+ *
+ * @param filters filters struct
+ */
+BURROW_API
+void burrow_filters_unset_wait(burrow_filters_st *filters);
+
+
 
 /**
  * Sets the detail filter.
@@ -148,55 +214,53 @@ BURROW_API
 void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detail);
 
 /**
- * Gets the match_hidden filter value. See burrow_filters_check for more
- * information on retrieving filters values.
+ * Gets the detail filter value. Behavior is undefined if
+ * detail is not set.
  *
  * @param filters filters struct
- * @return the value of the match_hidden filter
- */
-BURROW_API
-bool burrow_filters_get_match_hidden(const burrow_filters_st *filters);
-
-/**
- * Gets the marker filter value. See burrow_filters_check for more information
- * on retrieving filters values.
- *
- * @param filters filters struct
- * @return the value of the marker filter
- */
-BURROW_API
-const char *burrow_filters_get_marker(const burrow_filters_st *filters);
-
-/**
- * Gets the limit filter value. See burrow_filters_check for more information
- * on retrieving filters values.
- *
- * @param filters filters struct
- * @return the value of the limit filter
- */
-BURROW_API
-uint32_t burrow_filters_get_limit(const burrow_filters_st *filters);
-
-/**
- * Gets the wait filter value. See burrow_filters_check for more information
- * on retrieving filters values.
- *
- * @param filters filters struct
- * @return the value of the wait filter
- */
-BURROW_API
-uint32_t burrow_filters_get_wait(const burrow_filters_st *filters);
-
-/**
- * Gets the detail filter value. See burrow_filters_check for more information
- * on retrieving filters values.
- *
- * @param filters filters struct
- * @return the value of the detail filter
+ * @return the value of the filter
  */
 BURROW_API
 burrow_detail_t burrow_filters_get_detail(const burrow_filters_st *filters);
 
+/**
+ * Checks if detail is set.
+ *
+ * @param filters filters struct
+ * @return true if field is set, false otherwise
+ */
+BURROW_API
+bool burrow_filters_isset_detail(const burrow_filters_st *filters);
+
+/**
+ * Unsets the detail filter parameter.
+ *
+ * @param filters filters struct
+ */
+BURROW_API
+void burrow_filters_unset_detail(burrow_filters_st *filters);
+
+
+
+/**
+ * Sets the marker filter. Note: If marker_id is NULL, then marker will
+ * be unset.
+ *
+ * @param filters filters struct
+ * @param marker_id null-terminated marker-id
+ */
+BURROW_API
+void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id);
+
+/**
+ * Gets the marker filter value. If the marker value is not set, NULL
+ * is returned.
+ *
+ * @param filters filters struct
+ * @return the value of the filter
+ */
+BURROW_API
+const char *burrow_filters_get_marker(const burrow_filters_st *filters);
 
 #ifdef __cplusplus
 }

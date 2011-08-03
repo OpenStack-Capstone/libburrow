@@ -41,19 +41,20 @@ int main(void)
 
   // Test default values
   burrow_test("burrow_attributes_check");
-  if (burrow_attributes_check(attr, BURROW_ATTRIBUTES_ALL) != BURROW_ATTRIBUTES_NONE)
+  if (burrow_attributes_isset_ttl(attr) ||
+      burrow_attributes_isset_hide(attr))
     burrow_test_error("badly initialized, some attributes set")
   
   burrow_test("burrow_attributes ttl set get")
   burrow_attributes_set_ttl(attr, TTL);
-  if (!burrow_attributes_check(attr, BURROW_ATTRIBUTES_TTL))
+  if (!burrow_attributes_isset_ttl(attr))
     burrow_test_error("check failed");
   if ((v = burrow_attributes_get_ttl(attr)) != TTL)
     burrow_test_error("expected 100, got: %d", v);
   
   burrow_test("burrow_attributes hide set get")
   burrow_attributes_set_hide(attr, HIDE);
-  if (!burrow_attributes_check(attr, BURROW_ATTRIBUTES_HIDE))
+  if (!burrow_attributes_isset_hide(attr))
     burrow_test_error("check failed");
   if ((v = burrow_attributes_get_hide(attr)) != HIDE)
     burrow_test_error("hide: expected 10, got: %d", v);
@@ -62,9 +63,9 @@ int main(void)
   burrow_test("burrow_attributes_clone")
   if ((attr2 = burrow_attributes_clone(NULL, attr)) == NULL)
     burrow_test_error("returned NULL");
-  if (!burrow_attributes_check(attr, BURROW_ATTRIBUTES_TTL))
+  if (!burrow_attributes_isset_ttl(attr))
     burrow_test_error("check ttl failed");
-  if (!burrow_attributes_check(attr, BURROW_ATTRIBUTES_HIDE))
+  if (!burrow_attributes_isset_hide(attr))
     burrow_test_error("check hide failed");
   if (burrow_attributes_get_ttl(attr2) != TTL)
     burrow_test_error("ttl not copied");

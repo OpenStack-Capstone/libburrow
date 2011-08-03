@@ -112,7 +112,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 	jproc->body_size = 0;
 	/* Make sure we have a clean set of attributes */
 	if (jproc->attributes) {
-	  burrow_attributes_unset(jproc->attributes, BURROW_ATTRIBUTES_ALL);
+	  burrow_attributes_unset_all(jproc->attributes);
 	} else {
 	  jproc->attributes = burrow_attributes_create(0,0);
 	}

@@ -46,7 +46,7 @@
 #endif
 
 #include "burrow.h"
-#include "structs-local.h"
+#include "local.h"
 #include "internal.h"
 
 #include "backends.h"

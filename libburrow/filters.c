@@ -100,16 +100,14 @@ void burrow_filters_destroy(burrow_filters_st *filters)
   }
 }
 
-void burrow_filters_unset(burrow_filters_st *filters, burrow_filters_set_t set)
+void burrow_filters_unset_all(burrow_filters_st *filters)
 {
   /* TODO: if copystrings, then we need to dealloc our marker */
-  filters->set &= ~set;
+  filters->set = BURROW_FILTERS_NONE;
+  filters->marker = NULL;
 }
 
-bool burrow_filters_check(const burrow_filters_st *filters, burrow_filters_set_t set)
-{
-  return (filters->set & set);  /* if ANY are set, not if ALL are set */
-}
+
 
 void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidden)
 {
@@ -117,17 +115,22 @@ void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidd
   filters->set |= BURROW_FILTERS_MATCH_HIDDEN;
 }
 
-void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id)
+bool burrow_filters_get_match_hidden(const burrow_filters_st *filters)
 {
-  /* TODO: if copy strings is implemented, we need to copy the user input */
-  /* Special case: if the user passes in NULL, we treat it as an unset command */
-  if (marker_id == NULL) {
-    burrow_filters_unset(filters, BURROW_FILTERS_MARKER);
-    return;
-  }
-  filters->marker = marker_id;
-  filters->set |= BURROW_FILTERS_MARKER;
+  return filters->match_hidden;
 }
+
+bool burrow_filters_isset_match_hidden(const burrow_filters_st *filters)
+{
+  return (filters->set & BURROW_FILTERS_MATCH_HIDDEN);
+}
+
+void burrow_filters_unset_match_hidden(burrow_filters_st *filters)
+{
+  filters->set &= ~BURROW_FILTERS_MATCH_HIDDEN;
+}
+
+
 
 void burrow_filters_set_limit(burrow_filters_st *filters, uint32_t limit)
 {
@@ -135,11 +138,44 @@ void burrow_filters_set_limit(burrow_filters_st *filters, uint32_t limit)
   filters->set |= BURROW_FILTERS_LIMIT;
 }
 
+uint32_t burrow_filters_get_limit(const burrow_filters_st *filters)
+{
+  return filters->limit;
+}
+
+bool burrow_filters_isset_limit(const burrow_filters_st *filters)
+{
+  return (filters->set & BURROW_FILTERS_LIMIT);
+}
+
+void burrow_filters_unset_limit(burrow_filters_st *filters)
+{
+  filters->set &= ~BURROW_FILTERS_LIMIT;
+}
+
+
+
 void burrow_filters_set_wait(burrow_filters_st *filters, uint32_t wait_time)
 {
   filters->wait = wait_time;
   filters->set |= BURROW_FILTERS_WAIT;
 }
+
+uint32_t burrow_filters_get_wait(const burrow_filters_st *filters)
+{
+  return filters->wait;
+}
+
+bool burrow_filters_isset_wait(const burrow_filters_st *filters)
+{
+  return (filters->set & BURROW_FILTERS_WAIT);
+}
+
+void burrow_filters_unset_wait(burrow_filters_st *filters)
+{
+  filters->set &= ~BURROW_FILTERS_WAIT;
+}
+
 
 
 void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detail)
@@ -148,28 +184,31 @@ void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detai
   filters->set |= BURROW_FILTERS_DETAIL;
 }
 
-
-bool burrow_filters_get_match_hidden(const burrow_filters_st *filters)
+burrow_detail_t burrow_filters_get_detail(const burrow_filters_st *filters)
 {
-  return filters->match_hidden;
+  return filters->detail;
+}
+
+bool burrow_filters_isset_detail(const burrow_filters_st *filters)
+{
+  return (filters->set & BURROW_FILTERS_DETAIL);
+}
+
+void burrow_filters_unset_detail(burrow_filters_st *filters)
+{
+  filters->set &= ~BURROW_FILTERS_DETAIL;
+}
+
+
+
+void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id)
+{
+  /* TODO: if copy strings is implemented, we need to copy the user input */
+  /* Special case: if the user passes in NULL, we treat it as an unset command */
+  filters->marker = marker_id;
 }
 
 const char *burrow_filters_get_marker(const burrow_filters_st *filters)
 {
   return filters->marker;
-}
-
-uint32_t burrow_filters_get_limit(const burrow_filters_st *filters)
-{
-  return filters->limit;
-}
-
-uint32_t burrow_filters_get_wait(const burrow_filters_st *filters)
-{
-  return filters->wait;
-}
-
-burrow_detail_t burrow_filters_get_detail(const burrow_filters_st *filters)
-{
-  return filters->detail;
 }

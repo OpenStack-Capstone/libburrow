@@ -112,23 +112,6 @@ typedef enum {
   BURROW_FATAL
 } burrow_result_t;
 
-typedef enum {
-  BURROW_ATTRIBUTES_NONE = 0,
-  BURROW_ATTRIBUTES_TTL  = (1 << 0),
-  BURROW_ATTRIBUTES_HIDE = (1 << 1),
-  BURROW_ATTRIBUTES_ALL = ~BURROW_ATTRIBUTES_NONE
-} burrow_attributes_set_t;
-
-typedef enum {
-  BURROW_FILTERS_NONE         = 0,
-  BURROW_FILTERS_MATCH_HIDDEN = (1 << 0),
-  BURROW_FILTERS_LIMIT        = (1 << 1),
-  BURROW_FILTERS_MARKER       = (1 << 2),
-  BURROW_FILTERS_DETAIL       = (1 << 3),
-  BURROW_FILTERS_WAIT         = (1 << 4),
-  BURROW_FILTERS_ALL = ~BURROW_FILTERS_NONE
-} burrow_filters_set_t;
-
 /* Used publicly */
 typedef struct burrow_filters_st burrow_filters_st;
 typedef struct burrow_attributes_st burrow_attributes_st;

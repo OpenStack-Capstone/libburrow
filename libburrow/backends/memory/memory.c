@@ -62,7 +62,7 @@ static burrow_filters_st* _process_filter(burrow_backend_memory_st* self, const 
     return NULL;
   }
   
-  out_filters->set |= BURROW_FILTERS_MARKER | BURROW_FILTERS_LIMIT | BURROW_FILTERS_MATCH_HIDDEN;
+  out_filters->set |= BURROW_FILTERS_LIMIT | BURROW_FILTERS_MATCH_HIDDEN;
   out_filters->marker = NULL;
   out_filters->limit = DICTIONARY_LENGTH;
   out_filters->match_hidden = false;
@@ -70,7 +70,7 @@ static burrow_filters_st* _process_filter(burrow_backend_memory_st* self, const 
   /*  But if the supplied filter has sensible values, use those instead...*/
   if(in_filters)
   {
-    if(in_filters->set & BURROW_FILTERS_MARKER)
+    if(in_filters->marker)
       out_filters->marker = in_filters->marker;
     
     if(in_filters->set & BURROW_FILTERS_LIMIT)
