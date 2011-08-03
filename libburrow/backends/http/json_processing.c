@@ -95,7 +95,6 @@ static int burrow_backend_http_json_callback(void *ctx,
 	 * a complete message at this point, which we should pass off
 	 * to the appropriate callback.
 	 */
-	//printf("Ok, got the end of an object\n");
 	burrow_callback_message(burrow_backend_http_get_burrow(jproc->backend),
 				jproc->message_id,
 				(uint8_t *)jproc->body,
@@ -142,7 +141,6 @@ static int burrow_backend_http_json_callback(void *ctx,
 	    jproc->body = strdup(value->vu.str.value);
 	    jproc->body_size = strlen(value->vu.str.value);
 	  } else {
-	    fprintf(stderr, "WARNING!  unrecognized string valued key \"%s\"=\"%s\"\n", jproc->key, value->vu.str.value);
 	    burrow_error(burrow_backend_http_get_burrow(jproc->backend),
 			 BURROW_ERROR_SERVER,
 			 "ERROR!  unrecognized string valued key \"%s\"=\"%s\"\n", jproc->key, value->vu.str.value);
@@ -166,17 +164,17 @@ static int burrow_backend_http_json_callback(void *ctx,
 	  } else {
 	     burrow_error(burrow_backend_http_get_burrow(jproc->backend),
 			  BURROW_ERROR_SERVER,
-			  "WARNING! unrecognized integer key \"%s\"=%d\n",
+			  "WARNING! JSON parsing found unrecognized integer key \"%s\"=%d\n",
 			  jproc->key, value->vu.integer_value);
-	    fprintf(stderr, "WARNING! unrecognized integer key \"%s\"=%d\n",
-		    jproc->key, value->vu.integer_value);
 	    return 0;
 	  }
 	}
 	break;
       default:
-	fprintf(stderr, "WARNING: while parsing get response, unexpected type = %d\n",
-		type);
+	burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+		     BURROW_ERROR_SERVER,
+		     "WARNING! JSON parsing found unexpected type = %d\n",
+		     type);
 	return 0;
 	break;
       }
@@ -208,7 +206,11 @@ static int burrow_backend_http_json_callback(void *ctx,
 	}
 	break;
       default:
-	fprintf(stderr, "The JSON parser found an unexpected type: %d", type);
+	burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+		     BURROW_ERROR_SERVER,
+		     "WARNING! JSON parsing found unexpected type = %d\n",
+		     type);
+
 	return 0;
 	break;
       }
@@ -244,21 +246,22 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
   config.handle_floats_manually = 0;
   jc = new_JSON_parser(&config);
 
-  fprintf(stderr, "Text: \"%.*s\"\n\n", jsonsize, jsontext);
-
   int i;
   for (i = 0; i < (int)jsonsize; ++i) {
     int retval;
     int nextchar = jsontext[i];
     if ((retval = JSON_parser_char(jc, nextchar)) <= 0) {
-      fprintf(stderr, "JSON_parser_char returned error (%d) at byte %d (%d = '%c')\n",
-	      retval, i, (int)nextchar, nextchar);
+      burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+		   BURROW_ERROR_SERVER,
+		   "WARNING! JSON_parser_char (%d) at byte %d (%d = '%c')\n",
+		   retval, i, (int)nextchar, nextchar);
       return -1;
     }
   }    
-  fprintf(stderr, "Ok, parsed through the entire JSON message\n");
   if (!JSON_parser_done(jc)) {
-    fprintf(stderr, "JSON_parser_end: syntax error\n");
+    burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+		 BURROW_ERROR_SERVER,
+		 "WARNING! JSON_parser_end indicates JSON syntax error\n");
     delete_JSON_parser(jc);
     burrow_easy_json_st_destroy(json_processing);
     return -1;
