@@ -172,7 +172,7 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
 static void
 burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  fprintf(stderr, "burrow_backend_http_destroy called\n");
+  burrow_log_debug(backend->burrow, "burrow_backend_http_destroy callled\n");
   if (backend->proto != 0)
     free(backend->proto);
   if (backend->server !=0)
@@ -218,10 +218,13 @@ burrow_backend_http_set_option(void *ptr,
   } else if (strcmp(optionname, "port") == 0) {
     backend->port = strdup(value);
     url_affecting = 1;
-  } else
+  } else {
+    burrow_error(backend->burrow,
+		 BURROW_ERROR_UNSUPPORTED,
+		 "ERROR: Called set_option with illegal option: %s\n",
+		 optionname);
     return BURROW_ERROR_UNSUPPORTED;
-    
-
+  }
 
   if ((url_affecting) && (backend->server != 0) && (backend->port != 0) &&
       (backend->proto != 0))
@@ -273,7 +276,7 @@ burrow_backend_http_create_message(void *ptr,
     sprintf(url + strlen(url), "?%s", attr_string);
     free(attr_string);
   }
-printf("create_message url = \"%s\"\n", url);
+  burrow_log_debug(backend->burrow, "create_message url = \"%s\"\n", url);
   curl_easy_setopt(chandle, CURLOPT_URL, url);
 
   user_buffer *buffer = user_buffer_create_sized(0, body, body_size);
@@ -318,10 +321,6 @@ burrow_backend_http_process(void *ptr) {
 
   if (retval != CURLM_OK) {
     // it appears some kind of error occured...
-    fprintf(stderr,
-	    "error has occured when calling curl_multi_perform (%d): %s\n",
-	    retval,
-	    curl_multi_strerror(retval));
     burrow_error(backend->burrow, BURROW_ERROR_SERVER,
 		 "Call to libcurl failed(%d): %s\n",
 		 retval,
@@ -366,7 +365,10 @@ burrow_backend_http_process(void *ptr) {
       if (FD_ISSET(i, &write_fd_set))
 	burrow_event |= BURROW_IOEVENT_WRITE;
       if (FD_ISSET(i, &exec_fd_set))
-	fprintf(stderr, "WARNING!  libcurl wants to monitor exceptions on %d, but we cannot.\n", i);
+	burrow_error(backend->burrow,
+		     BURROW_ERROR_BAD_ARGS,
+		     "ERROR! libcurl wants to monitor exceptions on file_descriptor=%d, not presently supported",
+		     i);
       if (burrow_event != BURROW_IOEVENT_NONE) {
 	burrow_watch_fd(backend->burrow, i, burrow_event);
       }
@@ -716,7 +718,9 @@ burrow_backend_http_common_getting(void *ptr,
       snprintf(url+len_so_far, urllen-len_so_far, "?%s", attribute_str);
     free(attribute_str); attribute_str = 0;
   }
-  fprintf(stderr, "URL to send is \"%s\"\n", url);
+  burrow_log_debug(backend->burrow,
+		   "URL to send is \"%s\"\n",
+		   url);
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
   /* We weren't freeing this -- is this where this free should go? */
