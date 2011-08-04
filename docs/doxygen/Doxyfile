@@ -570,6 +570,7 @@ WARN_LOGFILE           =
 
 INPUT                  = docs/doxygen \
                          libburrow/burrow.h \
+                         libburrow/structs.h \
                          libburrow/constants.h \
                          libburrow/filters.h \
                          libburrow/attributes.h \

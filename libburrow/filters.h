@@ -176,7 +176,7 @@ void burrow_filters_unset_limit(burrow_filters_st *filters);
  * @param wait wait value
  */
 BURROW_API
-void burrow_filters_set_wait(burrow_filters_st *filters, uint32_t wait_time);
+void burrow_filters_set_wait(burrow_filters_st *filters, uint32_t wait);
 
 /**
  * Gets the wait filter value. Behavior is undefined if

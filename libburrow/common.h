@@ -46,9 +46,10 @@
 #endif
 
 #include "burrow.h"
-#include "local.h"
-#include "internal.h"
+#include "constants-local.h"
+#include "structs-local.h"
 
+#include "internal.h"
 #include "backends.h"
 #include "macros.h"
 

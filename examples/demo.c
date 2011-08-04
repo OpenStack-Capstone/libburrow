@@ -182,8 +182,8 @@ int main(int argc, char **argv)
   if (!burrow)
     FATAL("burrow creation failed");
     
-  burrow_backend_set_option(burrow, "server", server);
-  burrow_backend_set_option(burrow, "port", port);
+  burrow_set_backend_option(burrow, "server", server);
+  burrow_set_backend_option(burrow, "port", port);
   
   burrow_add_options(burrow, BURROW_OPT_AUTOPROCESS);
   
@@ -235,7 +235,7 @@ int main(int argc, char **argv)
       if (state.last_msg_id[0])
         burrow_filters_set_marker(filters, state.last_msg_id);
       else
-        burrow_filters_unset(filters, BURROW_FILTERS_MARKER);
+        burrow_filters_set_marker(filters, NULL);
       burrow_get_messages(burrow, account, queue, filters);
 
       if (state.error)

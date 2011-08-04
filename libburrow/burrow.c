@@ -446,6 +446,12 @@ void burrow_set_free_fn(burrow_st *burrow, burrow_free_fn *func)
   burrow->free_fn = func;
 }
 
+void burrow_set_verbosity(burrow_st *burrow, burrow_verbose_t verbosity)
+{
+  burrow->verbose = verbosity;
+}
+
+
 int burrow_get_message(burrow_st *burrow,
                        const char *account,
                        const char *queue,

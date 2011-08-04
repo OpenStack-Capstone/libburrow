@@ -117,7 +117,7 @@ void burrow_add_options(burrow_st *burrow, burrow_options_t options);
  * @param options Options to be disabled
  */
 BURROW_API
-void burrow_remove_options(burrow_st *burrow, burrow_options_t opts_to_remove);
+void burrow_remove_options(burrow_st *burrow, burrow_options_t options);
 
 /**
  * Returns current burrow options.
@@ -277,6 +277,7 @@ int burrow_create_message(burrow_st *burrow,
  * @param queue Queue name
  * @param message_id Message id
  * @param attributes Message attributes
+ * @param filters Filters, may be NULL
  * @return 0 on command completion or an errno value on error, such as
  *         EINPROGRESS or EINVAL
  */
@@ -298,6 +299,7 @@ int burrow_update_message(burrow_st *burrow,
  * @param account Account name
  * @param queue Queue name
  * @param message_id Message id
+ * @param filters Filters, may be NULL
  * @return 0 on command completion or an errno value on error, such as
  *         EINPROGRESS or EINVAL
  */
@@ -318,6 +320,7 @@ int burrow_get_message(burrow_st *burrow,
  * @param account Account name
  * @param queue Queue name
  * @param message_id Message id
+ * @param filters Filters, may be NULL
  * @return 0 on command completion or an errno value on error, such as
  *         EINPROGRESS or EINVAL
  */
@@ -492,6 +495,15 @@ int burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event);
  */
 BURROW_API
 const char *burrow_verbose_name(burrow_verbose_t verbose);
+
+/**
+ * Sets the verbosity level of a burrow instance.
+ *
+ * @param burrow Burrow object
+ * @param verbosity Verbosity level
+ */
+BURROW_API
+void burrow_set_verbosity(burrow_st *burrow, burrow_verbose_t verbosity);
 
 
 #ifdef  __cplusplus

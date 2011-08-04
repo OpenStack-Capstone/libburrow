@@ -29,8 +29,25 @@
 extern "C" {
 #endif
 
+/**
+ * @struct burrow_attributes_st
+ * Filters structure. Definition internal; use burrow_attributes_xyz functions
+ * to modify this structure.
+ */
 struct burrow_attributes_st;
+
+/**
+ * @struct burrow_filters_st
+ * Filters structure. Definition internal; use burrow_filters_xyz functions to
+ * modify this structure.
+ */
 struct burrow_filters_st;
+
+/**
+ * @struct burrow_st
+ * Burrow structure. Definition internal; use burrow_xyz functions to
+ * modify this structure.
+ */
 struct burrow_st;
 
 
