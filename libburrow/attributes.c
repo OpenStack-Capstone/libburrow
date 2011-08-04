@@ -23,7 +23,8 @@
 
 #include "common.h"
 
-burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burrow_st *burrow)
+burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest,
+                                               burrow_st *burrow)
 {
   if (!burrow || dest) {
     if (!dest) {
@@ -62,7 +63,8 @@ size_t burrow_attributes_size(void)
   return sizeof(burrow_attributes_st);
 }
 
-burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const burrow_attributes_st *src)
+burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest,
+                                              const burrow_attributes_st *src)
 {
   dest = burrow_attributes_create(dest, src->burrow);
   if (!dest)

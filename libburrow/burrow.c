@@ -40,15 +40,21 @@ const char *burrow_verbose_name(burrow_verbose_t verbose)
   return _error_strings[verbose];
 }
 
-void burrow_internal_log(burrow_st *burrow, burrow_verbose_t verbose, const char *msg, va_list args)
+void burrow_internal_log(burrow_st *burrow,
+                         burrow_verbose_t verbose,
+                         const char *msg,
+                         va_list args)
 { 
   char buffer[BURROW_MAX_ERROR_SIZE];
 
-  if (burrow->log_fn == NULL) {
+  if (burrow->log_fn == NULL)
+  {
     printf("%5s: ", burrow_verbose_name(verbose));
     vprintf(msg, args);
     printf("\n");
-  } else {
+  }
+  else
+  {
     vsnprintf(buffer, BURROW_MAX_ERROR_SIZE, msg, args);
     burrow->log_fn(burrow, verbose, buffer);
   }
@@ -62,10 +68,13 @@ int burrow_internal_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
 
   needed = burrow->watch_size + 1;
 
-  if (burrow->pfds_size < needed) {
+  if (burrow->pfds_size < needed)
+  {
     pfd = realloc(burrow->pfds, needed * sizeof(struct pollfd));
-    if (!pfd) {
-      burrow_log_error(burrow, "burrow_internal_watch_fd: couldn't reallocate pfds struct");
+    if (!pfd)
+    {
+      burrow_log_error(burrow,
+                       "burrow_internal_watch_fd: couldn't reallocate pfds");
       return ENOMEM;
     }
     burrow->pfds = pfd;
@@ -96,13 +105,19 @@ int burrow_internal_poll_fds(burrow_st *burrow)
     return 0;
 
   count = poll(burrow->pfds, burrow->watch_size, burrow->timeout);
-  if (count == -1) {
-    burrow_log_error(burrow, "burrow_internal_poll_fds: poll: error encountered %d", errno);
+  if (count == -1)
+  {
+    burrow_log_error(burrow,
+                     "burrow_internal_poll_fds: poll: error encountered %d",
+                     errno);
     return errno;
   }
-  if (count == 0) {
+  else if (count == 0)
+  {
     /* Timeout has occurred */
-    burrow_log_info(burrow, "burrow_internal_poll_fds: timeout %d reached", burrow->timeout);
+    burrow_log_info(burrow,
+                    "burrow_internal_poll_fds: timeout %d reached",
+                    burrow->timeout);
     burrow_cancel(burrow);
     return ETIMEDOUT;
   }
@@ -112,8 +127,10 @@ int burrow_internal_poll_fds(burrow_st *burrow)
   /* OSX will return one 'count' value per event raised, not per fd;
      this is a bug in its poll implementation. We work around by simply
      checking all fds, otherwise ignoring the count retrieved above */
-  while(pfd < (burrow->pfds + watch_size)) {
-    if (pfd->revents) { /* Found a live event */
+  while(pfd < (burrow->pfds + watch_size))
+  {
+    if (pfd->revents) /* found a live event */
+    {
       
       /* Dispatch it: */
       burrow_ioevent_t event = BURROW_IOEVENT_NONE;      
@@ -128,7 +145,8 @@ int burrow_internal_poll_fds(burrow_st *burrow)
       last_pfd = &burrow->pfds[watch_size];
       
       /* But not if we're at the last pfd entry */
-      if (last_pfd > pfd) {
+      if (last_pfd > pfd)
+      {
         pfd->fd = last_pfd->fd;
         pfd->events = last_pfd->events;
         pfd->revents = last_pfd->revents;
@@ -152,18 +170,21 @@ int burrow_process(burrow_st *burrow)
 
   burrow->flags |= BURROW_FLAG_PROCESSING;
 
-  while (burrow->state != BURROW_STATE_IDLE) {
-    switch(burrow->state) {
-    
-    case BURROW_STATE_START: /* command is initialized, but hasn't kicked off */
+  while (burrow->state != BURROW_STATE_IDLE)
+  {
+    switch(burrow->state)
+    {
+    case BURROW_STATE_START:
+      /* command is initialized, but hasn't kicked off */
       result = burrow->cmd.command_fn(burrow->backend_context, &burrow->cmd);
-      if (result == EAGAIN) /* TODO: EAGAIN */
+      if (result == EAGAIN)
         burrow->state = BURROW_STATE_WAITING;
       else /* could be error or OK */
         burrow->state = BURROW_STATE_FINISH;
       break;
 
-    case BURROW_STATE_READY: /* io events have made the backend ready */
+    case BURROW_STATE_READY:
+      /* io events have made the backend ready */
       result = burrow->backend->process(burrow->backend_context);
       if (result == EAGAIN)
         burrow->state = BURROW_STATE_WAITING;
@@ -175,23 +196,25 @@ int burrow_process(burrow_st *burrow)
       if (burrow->watch_size == 0)
         return EAGAIN; /* waiting is performed by the client */
       
-      /* TODO: what if this returns for timeout or error? */
-      if ((result = burrow_internal_poll_fds(burrow)) != 0) /* this should unblock the io */
-        return result;
+      if ((result = burrow_internal_poll_fds(burrow)) != 0)
+        return result; /* error received */
       break;
 
     case BURROW_STATE_FINISH: /* backend is done */
       if (burrow->watch_size > 0)
-        burrow_log_error(burrow, "in finish state while still waiting for fds");
+        burrow_log_error(burrow, "burrow_process: finishd with active fds");
+        
       burrow->state = BURROW_STATE_IDLE; /* we now accept new commands */
       burrow->cmd.command = BURROW_CMD_NONE;
+
       /* Note: this could update burrow state by calling a command again: */
       burrow_callback_complete(burrow); 
       break;
     
     case BURROW_STATE_IDLE: /* suppress compiler warning */
     default:
-      burrow_log_warn(burrow, "burrow_process: unexpected or unknown state %d", burrow->state);
+      burrow_log_warn(burrow, "burrow_process: unexpected or unknown state %x",
+                      burrow->state);
       break;
     }
   }
@@ -204,17 +227,22 @@ int burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
 {
   int result;
   
-  if (!burrow->backend->event_raised) {
-    burrow_log_warn(burrow, "burrow_event_raised: event raised but not no handler defined");
+  if (!burrow->backend->event_raised)
+  {
+    burrow_log_warn(burrow,
+                "burrow_event_raised: event raised but not no handler defined");
     return ENOTCONN;
   }
 
   if (burrow->state != BURROW_STATE_WAITING)
-    burrow_log_warn(burrow, "burrow_event_raised: event raised but not expected, fd %d, event %x", fd, event);
+    burrow_log_warn(burrow,
+                    "burrow_event_raised: unexpected event, fd %d, event %x",
+                    fd, event);
         
   result = burrow->backend->event_raised(burrow->backend_context, fd, event);
   
-  if (result == 0) {
+  if (result == 0)
+  {
     burrow->state = BURROW_STATE_READY;
     if (burrow->options & BURROW_OPT_AUTOPROCESS)
       return burrow_process(burrow);
@@ -244,17 +272,17 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   if (!backend_fns)
     return NULL;
   
-  if (!burrow) {
+  if (!burrow)
+  {
     /* We allocate to include the backend just after the base
        burrow struct */
-    
     burrow = malloc(sizeof(burrow_st) + backend_fns->size());
     if (!burrow)
       return NULL;
     burrow->flags = BURROW_FLAG_SELFALLOCATED;
-  } else {
-    burrow->flags = 0;
   }
+  else
+    burrow->flags = 0;
   
   burrow->options = 0;
   burrow->verbose = BURROW_VERBOSE_DEFAULT;
@@ -295,20 +323,25 @@ void burrow_destroy(burrow_st *burrow)
 
   burrow_free(burrow, burrow->pfds);
 
-  burrow_log_debug(burrow, "burrow_destroy: attributes list %c= NULL", (burrow->attributes_list == NULL ? '=' : '!')); 
+  burrow_log_debug(burrow, "burrow_destroy: attributes list %c= NULL",
+                   (burrow->attributes_list == NULL ? '=' : '!')); 
   while (burrow->attributes_list != NULL)
     burrow_attributes_destroy(burrow->attributes_list);
 
-  burrow_log_debug(burrow, "burrow_destroy: filters list %c= NULL", (burrow->filters_list == NULL ? '=' : '!')); 
+  burrow_log_debug(burrow, "burrow_destroy: filters list %c= NULL",
+                   (burrow->filters_list == NULL ? '=' : '!')); 
   while (burrow->filters_list != NULL)
     burrow_filters_destroy(burrow->filters_list);
 
-  if (burrow->flags & BURROW_FLAG_SELFALLOCATED) {
-    burrow_log_debug(burrow, "burrow_destroy: freeing self-allocated structure"); 
+  if (burrow->flags & BURROW_FLAG_SELFALLOCATED)
+  {
+    burrow_log_debug(burrow,
+                     "burrow_destroy: freeing self-allocated structure"); 
     burrow_free(burrow, burrow);
   }
   else
-    burrow_log_debug(burrow, "burrow_destroy: not freeing user-provided memory"); 
+    burrow_log_debug(burrow,
+                     "burrow_destroy: not freeing user-provided memory"); 
 }
 
 size_t burrow_size(const char *backend)
@@ -342,7 +375,8 @@ void burrow_add_options(burrow_st *burrow, burrow_options_t options)
   burrow->options |= options;
 }
 
-void burrow_remove_options(burrow_st *burrow, burrow_options_t options_to_remove)
+void burrow_remove_options(burrow_st *burrow,
+                           burrow_options_t options_to_remove)
 {
   burrow->options &= ~options_to_remove;
 }
@@ -352,14 +386,18 @@ burrow_options_t burrow_get_options(burrow_st *burrow)
   return burrow->options;
 }
 
-int burrow_set_backend_option(burrow_st *burrow, const char *option, const char *value)
+int burrow_set_backend_option(burrow_st *burrow,
+                              const char *option,
+                              const char *value)
 {
   if (!burrow->backend->set_option)
     return EINVAL;
   return burrow->backend->set_option(burrow->backend_context, option, value);
 }
 
-int burrow_set_backend_option_int(burrow_st *burrow, const char *option, int32_t value)
+int burrow_set_backend_option_int(burrow_st *burrow,
+                                  const char *option,
+                                  int32_t value)
 {
   (void) burrow;
   (void) option;
@@ -416,7 +454,7 @@ int burrow_get_message(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_get_message: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_get_message: burrow not idle");
     return EINPROGRESS;
   }
 
@@ -451,7 +489,7 @@ int burrow_create_message(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_create_message: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_create_message: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -487,7 +525,7 @@ int burrow_update_message(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_update_message: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_update_message: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -521,7 +559,7 @@ int burrow_delete_message(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_delete_message: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_delete_message: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -553,7 +591,7 @@ int burrow_get_messages(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_get_messages: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_get_messages: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -585,7 +623,7 @@ int burrow_delete_messages(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_delete_messages: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_delete_messages: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -618,7 +656,7 @@ int burrow_update_messages(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_update_messages: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_update_messages: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -650,7 +688,7 @@ int burrow_get_queues(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_get_queues: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_get_queues: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -679,7 +717,7 @@ int burrow_delete_queues(burrow_st *burrow,
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_delete_queues: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_delete_queues: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -706,7 +744,7 @@ int burrow_get_accounts(burrow_st *burrow, const burrow_filters_st *filters)
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_get_accounts: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_get_accounts: burrow not idle");
     return EINPROGRESS;
   }
   
@@ -726,7 +764,7 @@ int burrow_delete_accounts(burrow_st *burrow, const burrow_filters_st *filters)
 {
   if (burrow->state != BURROW_STATE_IDLE)
   {
-    burrow_log_error(burrow, "burrow_delete_accounts: burrow not in an idle state");
+    burrow_log_error(burrow, "burrow_delete_accounts: burrow not idle");
     return EINPROGRESS;
   }
   

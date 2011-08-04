@@ -43,7 +43,8 @@ extern "C" {
  * @return pointer to the created filters structure, or NULL on error
  */
 BURROW_API
-burrow_filters_st *burrow_filters_create(burrow_filters_st *dest, burrow_st *burrow);
+burrow_filters_st *burrow_filters_create(burrow_filters_st *dest,
+                                         burrow_st *burrow);
 
 /**
  * Returns the size of a filters structure.
@@ -69,7 +70,8 @@ size_t burrow_filters_size(void);
  * @return destination struct
  */
 BURROW_API
-burrow_filters_st *burrow_filters_clone(burrow_filters_st *dest, const burrow_filters_st *src);
+burrow_filters_st *burrow_filters_clone(burrow_filters_st *dest,
+                                        const burrow_filters_st *src);
 
 /**
  * Destroys/frees a given filter struct, properly unassociating it from any
@@ -97,7 +99,8 @@ void burrow_filters_unset_all(burrow_filters_st *filters);
  * @param match_hidden boolean value
  */
 BURROW_API
-void burrow_filters_set_match_hidden(burrow_filters_st *filters, bool match_hidden);
+void burrow_filters_set_match_hidden(burrow_filters_st *filters,
+                                     bool match_hidden);
 
 /**
  * Gets the match_hidden filter value. Behavior is undefined if
@@ -211,7 +214,8 @@ void burrow_filters_unset_wait(burrow_filters_st *filters);
  * @param detail detail level
  */
 BURROW_API
-void burrow_filters_set_detail(burrow_filters_st *filters, burrow_detail_t detail);
+void burrow_filters_set_detail(burrow_filters_st *filters,
+                               burrow_detail_t detail);
 
 /**
  * Gets the detail filter value. Behavior is undefined if
@@ -250,7 +254,8 @@ void burrow_filters_unset_detail(burrow_filters_st *filters);
  * @param marker_id null-terminated marker-id
  */
 BURROW_API
-void burrow_filters_set_marker(burrow_filters_st *filters, const char *marker_id);
+void burrow_filters_set_marker(burrow_filters_st *filters,
+                               const char *marker_id);
 
 /**
  * Gets the marker filter value. If the marker value is not set, NULL

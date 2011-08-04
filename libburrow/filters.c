@@ -23,10 +23,13 @@
 
 #include "common.h"
 
-burrow_filters_st *burrow_filters_create(burrow_filters_st *dest, burrow_st *burrow)
+burrow_filters_st *burrow_filters_create(burrow_filters_st *dest,
+                                         burrow_st *burrow)
 {
-  if (!burrow || dest) {
-    if (!dest) {
+  if (!burrow || dest)
+  {
+    if (!dest)
+    {
       dest = malloc(sizeof(burrow_filters_st));
       if (!dest)
         return NULL;
@@ -35,8 +38,9 @@ burrow_filters_st *burrow_filters_create(burrow_filters_st *dest, burrow_st *bur
     dest->burrow = burrow; /* for the free_fn, if burrow is defined */
     dest->next = dest; /* convention for non-managed */
     dest->prev = dest;
-    
-  } else if (!dest) {
+  }
+  else if (!dest)
+  {
     dest = burrow_malloc(burrow, sizeof(burrow_filters_st));
     if (!dest)
       return NULL;
@@ -83,21 +87,21 @@ burrow_filters_st *burrow_filters_clone(burrow_filters_st *dest, const burrow_fi
 void burrow_filters_destroy(burrow_filters_st *filters)
 {
   /* TODO: if copy strings is implemented, we need to free marker */
-  if (filters->burrow != NULL) { 
-    if (filters->next != filters) { /* a managed attribute object */
-
+  if (filters->burrow != NULL)
+  { 
+    if (filters->next != filters) /* a managed attribute object */
+    { 
       if (filters->next != NULL) /* not at end */
         filters->next->prev = filters->prev;
       if (filters->prev != NULL) /* not at front */
         filters->prev->next = filters->next;
       else /* at front -- update burrow */
         filters->burrow->filters_list = filters->next;
-
     }
     burrow_free(filters->burrow, filters);
-  } else {
-    free(filters);
   }
+  else
+    free(filters);
 }
 
 void burrow_filters_unset_all(burrow_filters_st *filters)

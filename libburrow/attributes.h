@@ -43,7 +43,8 @@ extern "C" {
  * @return pointer to the initialzied attributes structure, or NULL on error
  */
 BURROW_API
-burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest, burrow_st *burrow);
+burrow_attributes_st *burrow_attributes_create(burrow_attributes_st *dest,
+                                               burrow_st *burrow);
 
 /**
  * Returns the size of an attributes structure.
@@ -69,7 +70,8 @@ size_t burrow_attributes_size(void);
  * @return destination struct
  */
 BURROW_API
-burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest, const burrow_attributes_st *src);
+burrow_attributes_st *burrow_attributes_clone(burrow_attributes_st *dest,
+                                              const burrow_attributes_st *src);
 
 /**
  * Destroys/frees a given attributes structure, properly unassociating it from
@@ -131,7 +133,8 @@ bool burrow_attributes_isset_ttl(const burrow_attributes_st *attributes);
  * @param hide hide value
  */
 BURROW_API
-void burrow_attributes_set_hide(burrow_attributes_st *attributes, uint32_t hide);
+void burrow_attributes_set_hide(burrow_attributes_st *attributes,
+                                uint32_t hide);
 
 /**
  * Gets the hide value. See burrow_attributes_check for more information

@@ -50,7 +50,8 @@ static inline void burrow_callback_message(burrow_st *burrow,
  * @param burrow Burrow object
  * @param queue Queue name
  */
-static inline void burrow_callback_queue(burrow_st *burrow, const char *queue)
+static inline void burrow_callback_queue(burrow_st *burrow,
+                                         const char *queue)
 {
   if (burrow->queue_fn)
     burrow->queue_fn(burrow, queue);
@@ -62,7 +63,8 @@ static inline void burrow_callback_queue(burrow_st *burrow, const char *queue)
  * @param burrow Burrow object
  * @param queue Account name
  */
-static inline void burrow_callback_account(burrow_st *burrow, const char *account)
+static inline void burrow_callback_account(burrow_st *burrow,
+                                           const char *account)
 {
   if (burrow->account_fn)
     burrow->account_fn(burrow, account);
@@ -89,7 +91,9 @@ static inline void burrow_callback_complete(burrow_st *burrow)
  * @param fd Which fd
  * @param events Which events
  */
-static inline void burrow_watch_fd(burrow_st *burrow, int fd, burrow_ioevent_t events)
+static inline void burrow_watch_fd(burrow_st *burrow,
+                                   int fd,
+                                   burrow_ioevent_t events)
 {
   if (burrow->watch_fd_fn)
     burrow->watch_fd_fn(burrow, fd, events);
@@ -132,7 +136,9 @@ static inline void burrow_free(burrow_st *burrow, void *ptr)
  * is unused. Calling this function is the equivalent of calling
  * burrow_log_error with the same parameters.
  */
-static inline void burrow_error(burrow_st *burrow, int err, const char *msg, ...)
+static inline void burrow_error(burrow_st *burrow,
+                                int err,
+                                const char *msg, ...)
 {
   va_list args;
   (void) err;

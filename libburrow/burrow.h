@@ -117,7 +117,7 @@ void burrow_add_options(burrow_st *burrow, burrow_options_t options);
  * @param options Options to be disabled
  */
 BURROW_API
-void burrow_remove_options(burrow_st *burrow, burrow_options_t options_to_remove);
+void burrow_remove_options(burrow_st *burrow, burrow_options_t opts_to_remove);
 
 /**
  * Returns current burrow options.
@@ -137,7 +137,9 @@ burrow_options_t burrow_get_options(burrow_st *burrow);
  * @return 0 on success, errno result otherwise (e.g., EINVAL)
  */
 BURROW_API
-int burrow_set_backend_option(burrow_st *burrow, const char *option, const char *value);
+int burrow_set_backend_option(burrow_st *burrow,
+                              const char *option,
+                              const char *value);
 
 /**
  * Sets an integer backend option. If the specified option doesn't exist,
@@ -149,7 +151,9 @@ int burrow_set_backend_option(burrow_st *burrow, const char *option, const char 
  * @return 0 on success, errno result otherwise (e.g., EINVAL)
  */
 BURROW_API
-int burrow_set_backend_option_int(burrow_st *burrow, const char *option, int32_t value);
+int burrow_set_backend_option_int(burrow_st *burrow,
+                                  const char *option,
+                                  int32_t value);
 
 /**
  * Sets the message-received callback. Called once per message received.

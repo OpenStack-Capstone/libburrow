@@ -119,11 +119,15 @@ typedef void (burrow_queue_fn)(burrow_st *burrow, const char *queue);
 
 typedef void (burrow_account_fn)(burrow_st *burrow, const char *account);
 
-typedef void (burrow_log_fn)(burrow_st *burrow, burrow_verbose_t verbose, const char *msg);
+typedef void (burrow_log_fn)(burrow_st *burrow,
+                             burrow_verbose_t verbose,
+                             const char *msg);
 
 typedef void (burrow_complete_fn)(burrow_st *burrow);
 
-typedef void (burrow_watch_fd_fn)(burrow_st *burrow, int fd, burrow_ioevent_t event);
+typedef void (burrow_watch_fd_fn)(burrow_st *burrow,
+                                  int fd,
+                                  burrow_ioevent_t event);
 
 typedef void *(burrow_malloc_fn)(burrow_st *burrow, size_t size);
 
@@ -135,14 +139,21 @@ typedef void (burrow_backend_destroy_fn)(void *backend);
 typedef size_t (burrow_backend_size_fn)(void);
 typedef void *(burrow_backend_clone_fn)(void *dst, void *src);
 
-typedef int (burrow_backend_set_option_fn)(void *backend, const char *key, const char *value);
-typedef int (burrow_backend_set_option_int_fn)(void *backend, const char *key, const char *value);
+typedef int (burrow_backend_set_option_fn)(void *backend,
+                                           const char *key,
+                                           const char *value);
+typedef int (burrow_backend_set_option_int_fn)(void *backend,
+                                               const char *key,
+                                               const char *value);
 
 typedef void (burrow_backend_cancel_fn)(void *backend);
 typedef int (burrow_backend_process_fn)(void *backend);
-typedef int (burrow_backend_event_raised_fn)(void *backend, int fd, burrow_ioevent_t event);
+typedef int (burrow_backend_event_raised_fn)(void *backend,
+                                             int fd,
+                                             burrow_ioevent_t event);
 
-typedef int (burrow_backend_command_fn)(void *backend, const burrow_command_st *command);
+typedef int (burrow_backend_command_fn)(void *backend,
+                                        const burrow_command_st *command);
 
 #ifdef __cplusplus
 }
