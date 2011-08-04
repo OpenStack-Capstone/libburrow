@@ -708,13 +708,13 @@ burrow_backend_functions_st burrow_backend_memory_functions =
   .create           = &burrow_backend_memory_create,
   .destroy          = &burrow_backend_memory_free,
   .size             = &burrow_backend_memory_size,
-  /*.clone = &burrow_backend_memory_clone,
-   
-   .cancel = &burrow_backend_memory_cancel,
-   .set_option = &burrow_backend_memory_set_option,
-   
-   .event_raised = &burrow_backend_memory_event_raised,
-   */
+  
+  .cancel           = NULL,
+  .set_option       = NULL,
+  .set_option_int   = NULL,
+  .event_raised     = NULL,
+  .process          = NULL,
+
   .get_accounts     = &burrow_backend_memory_get_accounts,
   .delete_accounts  = &burrow_backend_memory_delete_accounts,
   
@@ -729,9 +729,6 @@ burrow_backend_functions_st burrow_backend_memory_functions =
   .get_message      = &burrow_backend_memory_get_message,
   .update_message   = &burrow_backend_memory_update_message,
   .delete_message   = &burrow_backend_memory_delete_message,
-  
-  
-  /*  .process = &burrow_backend_memory_process,*/
 };
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/

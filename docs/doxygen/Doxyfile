@@ -574,6 +574,7 @@ INPUT                  = docs/doxygen \
                          libburrow/constants.h \
                          libburrow/filters.h \
                          libburrow/attributes.h \
+                         libburrow/backends/backend.template \
                          examples
 
 # This tag can be used to specify the character encoding of the source files

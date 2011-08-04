@@ -108,7 +108,7 @@ int burrow_internal_poll_fds(burrow_st *burrow)
   if (count == -1)
   {
     burrow_log_error(burrow,
-                     "burrow_internal_poll_fds: poll: error encountered %d",
+                     "burrow_internal_poll_fds: poll: error encountered 0x%x",
                      errno);
     return errno;
   }
@@ -178,7 +178,15 @@ int burrow_process(burrow_st *burrow)
       /* command is initialized, but hasn't kicked off */
       result = burrow->cmd.command_fn(burrow->backend_context, &burrow->cmd);
       if (result == EAGAIN)
+      {
+        if (burrow->backend->process == NULL)
+        {
+          burrow_log_error(burrow, "burrow_process: unexpected EAGAIN");
+          burrow_cancel(burrow);
+          return EINVAL;
+        }
         burrow->state = BURROW_STATE_WAITING;
+      }
       else /* could be error or OK */
         burrow->state = BURROW_STATE_FINISH;
       break;
@@ -230,7 +238,7 @@ int burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
   if (!burrow->backend->event_raised)
   {
     burrow_log_warn(burrow,
-                "burrow_event_raised: event raised but not no handler defined");
+                "burrow_event_raised: event raised but no handler defined");
     return ENOTCONN;
   }
 
@@ -247,6 +255,14 @@ int burrow_event_raised(burrow_st *burrow, int fd, burrow_ioevent_t event)
     if (burrow->options & BURROW_OPT_AUTOPROCESS)
       return burrow_process(burrow);
   }
+  else if (result != EAGAIN)
+  {
+    burrow_log_error(burrow,
+                     "burrow_event_raised: backend returned errno 0x%x",
+                     errno);
+    burrow_cancel(burrow);
+  }
+
   return result;
 }
 
@@ -390,7 +406,7 @@ int burrow_set_backend_option(burrow_st *burrow,
                               const char *option,
                               const char *value)
 {
-  if (!burrow->backend->set_option)
+  if (!option || !burrow->backend->set_option)
     return EINVAL;
   return burrow->backend->set_option(burrow->backend_context, option, value);
 }
@@ -399,11 +415,11 @@ int burrow_set_backend_option_int(burrow_st *burrow,
                                   const char *option,
                                   int32_t value)
 {
-  (void) burrow;
-  (void) option;
-  (void) value;
-  return EINVAL;
-  /* TODO: not implemented? Maybe never? */
+  if (!option || !burrow->backend->set_option_int)
+    return EINVAL;
+  return burrow->backend->set_option_int(burrow->backend_context,
+                                         option,
+                                         value);
 }
 
 void burrow_set_message_fn(burrow_st *burrow, burrow_message_fn *callback)

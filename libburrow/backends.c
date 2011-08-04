@@ -31,13 +31,12 @@ burrow_backend_functions_st *burrow_backend_load_functions(const char *backend)
   if (!backend)
     return NULL;
     
-  if (!strcmp(backend, "dummy")) {
+  if (!strcmp(backend, "dummy"))
     return &burrow_backend_dummy_functions;
-  } else if (!strcmp(backend, "http")) {
+  else if (!strcmp(backend, "http"))
     return &burrow_backend_http_functions;
-  } else if (!strcmp(backend, "memory")) {
+  else if (!strcmp(backend, "memory"))
     return &burrow_backend_memory_functions;
-  }
   
   return NULL;
 }

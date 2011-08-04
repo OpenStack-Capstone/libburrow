@@ -56,15 +56,15 @@ MAINTAINERCLEANFILES = \
 lib_LTLIBRARIES += libburrow.la
 libburrow_la_SOURCES = \
 	libburrow/burrow.c \
-	libburrow/backends/dummy/dummy.c \
-	libburrow/backends/memory/memory.c \
 	libburrow/attributes.c \
 	libburrow/filters.c \
 	libburrow/backends.c \
+	libburrow/backends/memory/memory.c \
 	libburrow/backends/http/curl_backend.c \
 	libburrow/backends/http/user_buffer.c \
 	libburrow/backends/http/json_processing.c \
-	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c
+	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.c \
+	libburrow/backends/dummy/dummy.c
 
 
 nobase_include_HEADERS += \
@@ -86,8 +86,8 @@ noinst_HEADERS = \
 	libburrow/backends/http/curl_backend.h \
 	libburrow/backends/http/user_buffer.h \
 	libburrow/backends/http/json_processing.h \
-	libburrow/backends/dummy/dummy.h \
 	libburrow/backends/memory/memory.h \
+	libburrow/backends/dummy/dummy.h \
 	tests/common.h
 
 libburrow_la_CFLAGS = \
@@ -106,7 +106,6 @@ include config/pandora-plugin.am
 check_PROGRAMS = \
 	tests/burrow_filters_st \
 	tests/burrow_st \
-	tests/burrow_backend_dummy \
 	tests/burrow_backend_memory \
 	tests/burrow_attributes_st \
 	tests/burrow_backend_http

@@ -42,13 +42,14 @@ struct burrow_command_st
   const burrow_attributes_st *attributes;
 };
 
-struct burrow_backend_functions_st {
+struct burrow_backend_functions_st
+{
   burrow_backend_create_fn *create;
   burrow_backend_destroy_fn *destroy;
   burrow_backend_size_fn *size;
-  burrow_backend_clone_fn *clone;
 
   burrow_backend_set_option_fn *set_option;
+  burrow_backend_set_option_int_fn *set_option_int;
 
   burrow_backend_cancel_fn *cancel;
   burrow_backend_process_fn *process;
@@ -107,7 +108,8 @@ struct burrow_filters_st
   burrow_filters_st *prev;
 };
 
-struct burrow_st {
+struct burrow_st
+{
   /* Frontend state */
   burrow_options_t options;
   burrow_flags_t flags;

@@ -37,14 +37,13 @@ typedef struct burrow_backend_functions_st burrow_backend_functions_st;
 typedef void *(burrow_backend_create_fn)(void *dest, burrow_st *burrow);
 typedef void (burrow_backend_destroy_fn)(void *backend);
 typedef size_t (burrow_backend_size_fn)(void);
-typedef void *(burrow_backend_clone_fn)(void *dst, void *src);
 
 typedef int (burrow_backend_set_option_fn)(void *backend,
                                            const char *key,
                                            const char *value);
 typedef int (burrow_backend_set_option_int_fn)(void *backend,
                                                const char *key,
-                                               const char *value);
+                                               int32_t value);
 
 typedef void (burrow_backend_cancel_fn)(void *backend);
 typedef int (burrow_backend_process_fn)(void *backend);

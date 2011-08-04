@@ -197,14 +197,6 @@ burrow_backend_http_destroy(void * ptr) {
     free(backend);
 }
 
-static void *
-burrow_backend_http_clone(void *dst, void*src)
-{
-  (void)dst;
-  (void)src;
-  return NULL;
-}
-
 static int
 burrow_backend_http_set_option(void *ptr,
 			       const char *optionname, const char *value)
@@ -815,9 +807,9 @@ burrow_backend_functions_st burrow_backend_http_functions = {
   .create = &burrow_backend_http_create,
   .destroy = &burrow_backend_http_destroy,
   .size = &burrow_backend_http_size,
-  .clone = &burrow_backend_http_clone,
 
   .set_option = &burrow_backend_http_set_option,
+  .set_option_int = NULL,
 
   .event_raised = &burrow_backend_http_event_raised,
 
