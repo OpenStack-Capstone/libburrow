@@ -28,6 +28,14 @@
 extern "C" {
 #endif
 
+/**
+ * The backend loader/linker function. Used to load a function structure
+ * that defines the interface to a backend.
+ *
+ * @param backend Which backend to load
+ * @return ptr to a burrow_backend_functions_st fully populated or NULL if
+ *         backend doesn't exist.
+ */
 burrow_backend_functions_st *burrow_backend_load_functions(const char *backend);
 
 #ifdef  __cplusplus
