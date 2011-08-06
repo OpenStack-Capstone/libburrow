@@ -34,7 +34,9 @@ noinst_PROGRAMS = \
 
 if HAVE_LIBUUID
   noinst_PROGRAMS += examples/demo
+  noinst_PROGRAMS += examples/oneshot
   examples_demo_LDFLAGS= ${LTLIBUUID}
+  examples_oneshot_LDFLAGS= ${LTLIBUUID}
 endif
 
 EXTRA_DIST = \

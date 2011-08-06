@@ -505,7 +505,7 @@ int burrow_create_message(burrow_st *burrow,
                           const char *account, 
                           const char *queue, 
                           const char *message_id,
-                          const uint8_t *body,
+                          const void *body,
                           size_t body_size,
                           const burrow_attributes_st *attributes)
 {
