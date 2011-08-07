@@ -574,6 +574,8 @@ INPUT                  = docs/doxygen \
                          libburrow/constants.h \
                          libburrow/filters.h \
                          libburrow/attributes.h \
+                         libburrow/structs-local.h \
+                         libburrow/constants-local.h \
                          libburrow/backends/dummy/dummy.c \
                          examples
 

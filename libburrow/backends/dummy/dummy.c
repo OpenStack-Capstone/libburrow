@@ -29,13 +29,9 @@ typedef struct burrow_backend_dummy_st
   burrow_st *burrow;
 } burrow_backend_dummy_st;
 
-/**
- * Creates a backend.
- *
- * @param ptr NULL, meaning "please allocate for me", or pointer to
- *            memory allocated after calling size function.
- * @param burrow Burrow object to be associated with this backend.
- * @return pointer to initialized memory
+
+/** 
+ * Implements burrow_backend_functions_st#create
  */
 static void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
 {
@@ -56,11 +52,8 @@ static void *burrow_backend_dummy_create(void *ptr, burrow_st *burrow)
   return dummy;
 }
 
-/**
- * Deallocates/destroys a backend.
- *
- * @param ptr pointer to a backend struct
- * @return pointer to initialized memory
+/** 
+ * Implements burrow_backend_functions_st#destroy
  */
 static void burrow_backend_dummy_destroy(void *ptr)
 {
@@ -77,24 +70,16 @@ static void burrow_backend_dummy_destroy(void *ptr)
                      "dummy_destroy: deallocating self-allocated struct");
 }
 
-/**
- * Returns the size of a base backend structure so that the user
- * or frontend can allocate space appropriately.
- *
- * @return size of a base backend structure
+/** 
+ * Implements burrow_backend_functions_st#size
  */
 static size_t burrow_backend_dummy_size(void)
 {
   return sizeof(burrow_backend_dummy_st);
 }
 
-/**
- * Generic set_option string, string function.
- *
- * @param ptr Pointer to backend struct
- * @param key Key name, guaranteed to be non-NULL
- * @param value Value, may be NULL
- * @return 0 on success, EINVAL if key or value is invalid
+/** 
+ * Implements burrow_backend_functions_st#set_option
  */
 static int burrow_backend_dummy_set_option(void *ptr,
                                            const char *key,
@@ -116,13 +101,8 @@ static int burrow_backend_dummy_set_option(void *ptr,
   return EINVAL;
 }
 
-/**
- * Generic set_option_int -> string, int function.
- *
- * @param ptr Pointer to backend struct
- * @param key Key name, guaranteed to be non-NULL
- * @param value Value
- * @return 0 on success, EINVAL if key or value is invalid
+/** 
+ * Implements burrow_backend_functions_st#set_option_int
  */
 static int burrow_backend_dummy_set_option_int(void *ptr,
                                                const char *key,
@@ -143,13 +123,8 @@ static int burrow_backend_dummy_set_option_int(void *ptr,
   return EINVAL;
 }
 
-/**
- * Called when the user requests all pending activity to be canceled.
- * The backend should be in a good but idle state after this call.
- * All previously requested watch-fds will no longer be watched after
- * this call.
- *
- * @param ptr pointer to backend struct
+/** 
+ * Implements burrow_backend_functions_st#cancel
  */
 static void burrow_backend_dummy_cancel(void *ptr)
 {
@@ -157,16 +132,8 @@ static void burrow_backend_dummy_cancel(void *ptr)
   (void) dummy;
 }
 
-/**
- * Called when the user wants the backend to continue processing whichever
- * command last returned EAGAIN.
- *
- * Backends SHOULD NOT block; if a backend would block, it should instead
- * call burrow_watch_fd() one or more times and return EAGAIN.
- *
- * @param ptr pointer to backend struct
- * @return 0 on command completion, EAGAIN on wouldblock, or any other
- *         errno constant on error
+/** 
+ * Implements burrow_backend_functions_st#process
  */
 static int burrow_backend_dummy_process(void *ptr)
 {
@@ -175,19 +142,8 @@ static int burrow_backend_dummy_process(void *ptr)
   return 0;
 }
 
-
-/**
- * Called when an event previously watched by calling burrow_watch_fd
- * comes live. Processing should not occur at this stage, only within
- * the backend's process function.
- *
- * @param ptr pointer to backend struct
- * @param fd file descriptor that came live
- * @param event bit-array of events that came live
- * @return 0 if the backend is ready to have process called on it, EAGAIN
- *         if the backend is still waiting for more events to come live,
- *         or any other errno on error, which will result in burrow_cancel
- *         being invoked against this backend after return.
+/** 
+ * Implements burrow_backend_functions_st#event_raised
  */
 static int burrow_backend_dummy_event_raised(void *ptr,
                                                 int fd,
@@ -201,13 +157,8 @@ static int burrow_backend_dummy_event_raised(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a get_accounts command. The following is guaranteed:
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#get_accounts
  */
 static int burrow_backend_dummy_get_accounts(void *ptr,
                                              const burrow_command_st *cmd)
@@ -228,13 +179,8 @@ static int burrow_backend_dummy_get_accounts(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a delete_accounts command. The following is guaranteed:
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#delete_accounts
  */
 static int burrow_backend_dummy_delete_accounts(void *ptr,
                                                 const burrow_command_st *cmd)
@@ -256,14 +202,8 @@ static int burrow_backend_dummy_delete_accounts(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a get_queues command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#get_queues
  */
 static int burrow_backend_dummy_get_queues(void *ptr,
                                            const burrow_command_st *cmd)
@@ -284,14 +224,8 @@ static int burrow_backend_dummy_get_queues(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a delete_queues command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#delete_queues
  */
 static int burrow_backend_dummy_delete_queues(void *ptr,
                                               const burrow_command_st *cmd)
@@ -313,15 +247,8 @@ static int burrow_backend_dummy_delete_queues(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a get_messages command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#get_messages
  */
 static int burrow_backend_dummy_get_messages(void *ptr,
                                              const burrow_command_st *cmd)
@@ -343,15 +270,8 @@ static int burrow_backend_dummy_get_messages(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a delete_messages command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#delete_messages
  */
 static int burrow_backend_dummy_delete_messages(void *ptr,
                                                 const burrow_command_st *cmd)
@@ -374,16 +294,8 @@ static int burrow_backend_dummy_delete_messages(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a update_messages command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->attributes WILL be non-NULL, check individual attributes
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#update_messages
  */
 static int burrow_backend_dummy_update_messages(void *ptr,
                                                 const burrow_command_st *cmd)
@@ -406,16 +318,8 @@ static int burrow_backend_dummy_update_messages(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a get_message command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->message_id WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#get_message
  */
 static int burrow_backend_dummy_get_message(void *ptr,
                                             const burrow_command_st *cmd)
@@ -435,16 +339,8 @@ static int burrow_backend_dummy_get_message(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a delete_message command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->message_id WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#delete_message
  */
 static int burrow_backend_dummy_delete_message(void *ptr,
                                                const burrow_command_st *cmd)
@@ -467,16 +363,8 @@ static int burrow_backend_dummy_delete_message(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a update_message command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->message_id WILL be non-NULL
- *   cmd->filters MAY be NULL, check individual filters
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#update_message
  */
 static int burrow_backend_dummy_update_message(void *ptr,
                                                const burrow_command_st *cmd)
@@ -499,18 +387,8 @@ static int burrow_backend_dummy_update_message(void *ptr,
   return 0;
 }
 
-/**
- * Invocation of a create command. The following is guaranteed:
- *   cmd->account WILL be non-NULL
- *   cmd->queue WILL be non-NULL
- *   cmd->message_id WILL be non-NULL
- *   cmd->body WILL be non-NULL
- *   cmd->body_size WILL be set to appropriate size
- *   cmd->attributes MAY be NULL, check individual attributes
- *
- * @param ptr Pointer to backend context
- * @param cmd Command structure
- * @return 0 on success, EAGAIN if would block, any other errors otherwise
+/** 
+ * Implements burrow_backend_functions_st#create_message
  */
 static int burrow_backend_dummy_create_message(void *ptr,
                                                const burrow_command_st *cmd)
@@ -530,8 +408,9 @@ static int burrow_backend_dummy_create_message(void *ptr,
 }
 
 /**
- * This is the structure that's required to be exposed to the frontend
- * so that appropriate backend functions can be called.
+ * The public face of burrow_backend_dummy
+ *
+ * An implementation of @extends burrow_backend_functions_st
  */
 burrow_backend_functions_st burrow_backend_dummy_functions =
 {
