@@ -72,67 +72,100 @@ burrow_backend_http_get_curl_easy_handle(burrow_backend_t* backend) {
 static char *
 burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes){
   char buf[1024] = "";
+  size_t len = 0;
   if (attributes == 0)
     return 0;
-  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL))
-    sprintf(buf, "ttl=%ld", burrow_attributes_get_ttl(attributes));
-  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE)) {
-    if (strlen(buf) > 0)
-      sprintf(buf + strlen(buf),"%s", "&");
-    sprintf(buf + strlen(buf), "hide=%ld",
-	    burrow_attributes_get_hide(attributes));
+  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_TTL)) {
+    len = (size_t)snprintf(buf, sizeof(buf), "ttl=%ld",
+			   burrow_attributes_get_ttl(attributes));
   }
-  if (strlen(buf) == 0)
+  if (burrow_attributes_check(attributes, BURROW_ATTRIBUTES_HIDE)) {
+    if (len > 0)
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "%shide=%ld", "&",
+			      burrow_attributes_get_hide(attributes));
+    else
+      len = (size_t)snprintf(buf, sizeof(buf), "hide=%ld",
+		     burrow_attributes_get_hide(attributes));
+  }
+  if (len == 0) {
     return 0;
-  else 
-    return strdup(buf);
+  } else {
+    char *ptr = malloc(len+1);
+    memcpy(ptr, buf, len+1);
+    return ptr;
+  }
 }
 
 /* Given filters, return a malloced space containing something
    suitable for adding to the end of a url
 */
 static char *
-burrow_backend_http_filters_to_string(const burrow_filters_st *filters) {
+burrow_backend_http_filters_to_string(burrow_backend_t *backend,
+				      const burrow_filters_st *filters) {
   char buf[1024] = "";
-  if (filters== 0)
+  size_t len = 0;
+  if (filters == 0)
     return 0;
 
   if (burrow_filters_check(filters, BURROW_FILTERS_MATCH_HIDDEN)) {
     if (burrow_filters_get_match_hidden(filters) == true)
-      sprintf(buf, "match_hidden=true");
+      len = (size_t)snprintf(buf, sizeof(buf), "match_hidden=true");
     else 
-      sprintf(buf, "match_hidden=false");
+      len = (size_t)snprintf(buf, sizeof(buf), "match_hidden=false");
   }
   if (burrow_filters_check(filters, BURROW_FILTERS_LIMIT)) {
-    if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "limit=%d", burrow_filters_get_limit(filters));
-  }
-  if (burrow_filters_check(filters, BURROW_FILTERS_MARKER)) {
-    if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "marker=%s", burrow_filters_get_marker(filters));
+    if (len > 0) {
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "&limit=%d",
+			      burrow_filters_get_limit(filters));
+    } else {
+      len = (size_t)snprintf(buf + len, sizeof(buf) - len, "limit=%d",
+			     burrow_filters_get_limit(filters));
+    }
   }
   if (burrow_filters_check(filters, BURROW_FILTERS_WAIT)) {
-    if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
-    sprintf(buf + strlen(buf), "wait=%d", burrow_filters_get_wait(filters));
+    if (len > 0) {
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "&wait=%d",
+			      burrow_filters_get_wait(filters));
+    } else {
+      len = (size_t)snprintf(buf + len, sizeof(buf)-len, "wait=%d",
+			     burrow_filters_get_wait(filters));
+    }
   }
   if (burrow_filters_check(filters, BURROW_FILTERS_DETAIL)) {
-    if (strlen(buf) > 0) sprintf(buf + strlen(buf), "&");
+    if (len > 0) {
+      len += (size_t)snprintf(buf + len, sizeof(buf)-len, "&");
+    }
     if (burrow_filters_get_detail(filters) == BURROW_DETAIL_NONE)
-      sprintf(buf + strlen(buf), "detail=none");
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "detail=none");
     else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_ID)
-      sprintf(buf + strlen(buf), "detail=id");
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "detail=id");
     else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_ATTRIBUTES)
-      sprintf(buf + strlen(buf), "detail=attributes");
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "detail=attributes");
     else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_BODY)
-      sprintf(buf + strlen(buf), "detail=body");
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "detail=body");
     else if (burrow_filters_get_detail(filters) == BURROW_DETAIL_ALL)
-      sprintf(buf + strlen(buf), "detail=all");
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "detail=all");
   }
   
-  if (strlen(buf) == 0)
+  if (burrow_filters_check(filters, BURROW_FILTERS_MARKER)) {
+    char *marker =
+      curl_easy_escape(backend->chandle, burrow_filters_get_marker(filters),0);
+    if (len > 0) {
+      len += (size_t)snprintf(buf + len, sizeof(buf) - len, "&marker=%s",
+			      marker);
+    } else {
+      len = (size_t)snprintf(buf, sizeof(buf), "marker=%s", marker);
+    }
+    curl_free(marker);
+  }
+
+  if (len == 0){
     return 0;
-  else
-    return strdup(buf);
+  } else {
+    char*ptr = (char*)malloc(len+1);
+    memcpy(ptr, buf, len+1);
+    return ptr;
+  }
 }
 
 
@@ -232,13 +265,16 @@ burrow_backend_http_set_option(void *ptr,
       if (backend->baseurl != 0)
 	free(backend->baseurl);
 
-      backend->baseurl = malloc(strlen(backend->proto) + strlen(backend->server) +
-				       strlen(backend->port) + 20);
-      sprintf(backend->baseurl, "%s://%s:%s",
-	      backend->proto,
-	      backend->server,
-	      backend->port
-	      );
+      size_t lenurl = strlen(backend->proto) + strlen(backend->server) +
+	strlen(backend->port) + 20;
+      backend->baseurl = malloc(lenurl);
+      snprintf(backend->baseurl,
+	       lenurl,
+	       "%s://%s:%s",
+	       backend->proto,
+	       backend->server,
+	       backend->port
+	       );
     }
   return BURROW_OK;
 }
@@ -262,18 +298,20 @@ burrow_backend_http_create_message(void *ptr,
   message_id = curl_easy_escape(chandle,cmd->message_id,0);
 
   char *attr_string = burrow_backend_http_attributes_to_string(attributes);
-  char *url = malloc(strlen(backend->baseurl) + strlen(account) + 
-		     strlen(queue) + strlen(message_id) +
-		     (attr_string ? strlen(attr_string) : 0) +
-		     20);
-  sprintf(url, "%s/%s/%s/%s/%s",
-	  backend->baseurl, backend->proto_version,
-	  account, queue, message_id);
+  size_t urllen = strlen(backend->baseurl) + strlen(account) + 
+    strlen(queue) + strlen(message_id) +
+    (attr_string ? strlen(attr_string) : 0) + 20;
+  char *url = (char *)malloc(urllen);
+  size_t urllen_sofar =
+    (size_t)snprintf(url, urllen, "%s/%s/%s/%s/%s",
+	     backend->baseurl, backend->proto_version,
+	     account, queue, message_id);
   curl_free(account); account = 0;
   curl_free(queue); queue = 0;
   curl_free(message_id); message_id = 0;
   if (attr_string != 0) {
-    sprintf(url + strlen(url), "?%s", attr_string);
+    urllen_sofar += (size_t)snprintf(url + urllen_sofar, urllen - urllen_sofar,
+			     "?%s", attr_string);
     free(attr_string);
   }
   burrow_log_debug(backend->burrow, "create_message url = \"%s\"\n", url);
@@ -469,7 +507,7 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
   if (command == BURROW_CMD_GET_QUEUES) {
     account = curl_easy_escape(chandle, cmd->account, 0);
   }
-  filter_str = burrow_backend_http_filters_to_string(filters);
+  filter_str = burrow_backend_http_filters_to_string(backend, filters);
   
   urllen = strlen(backend->baseurl) +
     strlen(backend->proto_version) +
@@ -558,7 +596,7 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   if (command == BURROW_CMD_DELETE_QUEUES)
     account = curl_easy_escape(chandle, cmd->account, 0);
 
-  filter_str = burrow_backend_http_filters_to_string(filters);
+  filter_str = burrow_backend_http_filters_to_string(backend, filters);
   urllen = strlen(backend->baseurl) +
     strlen(backend->proto_version) +
     (account==0 ? 0 : strlen(account)) +
@@ -672,7 +710,7 @@ burrow_backend_http_common_getting(void *ptr,
   else
     message_id = 0;
 
-  filter_str = burrow_backend_http_filters_to_string(filters);
+  filter_str = burrow_backend_http_filters_to_string(backend, filters);
 
   // If this is an update, attributes are also sent.
   if ((command == BURROW_CMD_UPDATE_MESSAGES) || (command == BURROW_CMD_UPDATE_MESSAGE))
