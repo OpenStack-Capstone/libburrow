@@ -1,7 +1,8 @@
 libburrow
 =========
 
-This project provides an asynchronous C library for interacting with a Burrow message queue server. See: http://burrow.openstack.org/
+This project provides an asynchronous C library for interacting with a Burrow
+message queue server. See: http://burrow.openstack.org/
 
 Status
 ------
@@ -40,9 +41,12 @@ Tests are located in the tests/ subfolder. To run test applications, please run:
 
 	$ make check
 
-This will compile and run test files. (Note: new files must also be added to Makefile.am, by modifying check_PROGRAMS).
+This will compile and run test files. (Note: new files must also be added to
+Makefile.am, by modifying check_PROGRAMS).
 
-You may find yourself wanting to run a test in gdb. You may find yourself wanting to run code coverage. Well, we can do all this and more! Supported commands of further interest:
+You may find yourself wanting to run a test in gdb. You may find yourself
+wanting to run code coverage. Well, we can do all this and more!
+Supported commands of further interest:
 
   $ make check-valgrind  # run tests thru valgrind
   $ make check-gdb       # run tests thru gdb
@@ -52,4 +56,5 @@ You may find yourself wanting to run a test in gdb. You may find yourself wantin
 Functional Tests
 ----------------
 
-These haven't been implemented yet, but eventually will, under examples/. More notes to come in the future.
+These haven't been implemented yet, but eventually will, under examples/
+More notes to come in the future.
