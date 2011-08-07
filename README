@@ -1,26 +1,37 @@
 libburrow
 =========
 
-This project provides an asynchronous C library for interacting with a [Burrow][2] message queue server, a part of [OpenStack][2].
+This project provides an asynchronous C library for interacting with a Burrow message queue server. See: http://burrow.openstack.org/
 
 Status
 ------
 
-Implementation of this client library has just begun, and the design of its interface is ongoing. **You should not use it for any purpose at this time.**
+This is an early-release version of the library. Major functionality is
+in place, and functional, but there are doubtless bugs, quirks, kludges,
+and goblins hiding in the code.
 
-Please see the [Burrow documentation][1] for more information about the design of the message queue service.
+Use with caution.
+
+Maintainer Setup
+----------------
+
+If you didn't download this as a tarball, you probably pulled it from
+a souce-control repository. In that case, please run:
+
+  # ./config/autorun.sh
+  
+That'll setup the autotools environment.
 
 Compilation
 -----------
 
-This repository is set up for maintainers, not users at the moment. This means that libburrow will not simply ./configure && make. Instead, after you retrieve the repository, you must set up the autotools environment. First, make sure you have automake, autoconf, and libtool installed. Then, inside the root project directory, run:
+Now that your autotools environment is set up (or if you downloaded this
+as a tarball), please run:
 
-	$ autoreconf # this will probably fail the first time around, that's good
-	$ libtoolize
-	$ automake --add-missing
-	$ autoreconf # this should succeed, maybe with some output
+  # ./configure
+  # ./make && ./make install
 
-You are now able to run ./configure, and make after that.
+To install the library.
 
 Tests
 -----
@@ -35,12 +46,10 @@ You may find yourself wanting to run a test in gdb. You may find yourself wantin
 
   $ make check-valgrind  # run tests thru valgrind
   $ make check-gdb       # run tests thru gdb
-  $ make lcov            # run tests and calculate line coverage; make sure you ./configure --enable-coverage
+  $ make lcov            # run tests and calculate line coverage
+                         # make sure you first ./configure --enable-coverage
 
 Functional Tests
 ----------------
 
 These haven't been implemented yet, but eventually will, under examples/. More notes to come in the future.
-
-[1]: http://burrow.openstack.org/  "Burrow Documentation"
-[2]: http://openstack.org/         "OpenStack"
