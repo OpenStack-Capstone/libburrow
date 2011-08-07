@@ -275,7 +275,7 @@ burrow_backend_http_create_message(void *ptr,
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(chandle, CURLOPT_INFILESIZE, body_size);
 
-  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
+/*  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1); */
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
   if (backend->chandle) {
