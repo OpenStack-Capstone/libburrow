@@ -113,8 +113,17 @@ check_PROGRAMS = \
 	tests/burrow_attributes_st \
 	tests/burrow_backend_http
 
+tests_burrow_backend_http_SOURCES = \
+    tests/burrow_backend_http.c \
+    tests/burrow_generic_tests.c
+
+tests_burrow_backend_memory_SOURCES = \
+    tests/burrow_backend_memory.c \
+    tests/burrow_generic_tests.c
+
 check_HEADERS = \
-	tests/common.h
+	tests/common.h \
+	tests/burrow_generic_tests.h
 
 TESTS = $(check_PROGRAMS)
 
