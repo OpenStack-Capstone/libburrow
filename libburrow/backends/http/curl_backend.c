@@ -38,11 +38,17 @@
 //#include <libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h>
 
 struct burrow_backend_st {
-  char *proto;
+  char proto[32];
+  size_t proto_len;
+  char proto_version[32];
+  size_t proto_version_len;
+  char port[32];
+  size_t port_len;
+
   char *server;
-  char *port;
+  size_t server_len;
   char *baseurl;
-  char *proto_version;
+  size_t baseurl_len;
   burrow_st *burrow;
   struct user_buffer_st *buffer;
 
@@ -197,11 +203,16 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
     return 0;
 
   backend->burrow = burrow;
-  backend->proto = strdup("http");
+  strcpy(backend->proto, "http");
+  backend->proto_len = 4;
   backend->server = 0;
-  backend->port = 0;
+  backend->server_len = 0;
+  backend->port[0] = 0;
+  backend->port_len = 0;
   backend->baseurl = 0;
-  backend->proto_version = strdup("v1.0");
+  backend->baseurl_len = 0;
+  strcpy(backend->proto_version, "v1.0");
+  backend->proto_version_len = 4;
   backend->buffer = 0;
   backend->chandle = 0;
   backend->get_body_only = false;
@@ -214,16 +225,10 @@ static void
 burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   burrow_log_debug(backend->burrow, "burrow_backend_http_destroy callled\n");
-  if (backend->proto != 0)
-    free(backend->proto);
   if (backend->server !=0)
     free(backend->server);
-  if (backend->port)
-    free(backend->port);
   if (backend->baseurl)
     free(backend->baseurl);
-  if (backend->proto_version)
-    free(backend->proto_version);
   if (backend->buffer)
     user_buffer_destroy(backend->buffer);
   if (backend->chandle) {
@@ -246,32 +251,43 @@ burrow_backend_http_set_option(void *ptr,
 
   int url_affecting = 0;
   if (strcmp(optionname, "server") == 0) {
-    backend->server = strdup(value);
+    backend->server_len = strlen(value);
+    backend->server = malloc(backend->server_len + 1);
+    strcpy(backend->server, value);
     url_affecting = 1;
   } else if (strcmp(optionname, "port") == 0) {
-    backend->port = strdup(value);
+    backend->port_len = strlen(value);
+    if (backend->port_len >= (sizeof(backend->port) - 1)){
+      burrow_log_error(backend->burrow, "ERROR: Attempt to set port = \"%s\" failed, because it has %d bytes, but the max is %d\n",
+		       value, (int)backend->port_len, (int)sizeof(backend) - 1);
+      backend->port_len = strlen(backend->port);
+      return EINVAL;
+    }
+    strcpy(backend->port, value);
     url_affecting = 1;
   } else {
-    burrow_log_warn(backend->burrow, "Called set_option with illegal option: %s\n", optionname);
+    burrow_log_error(backend->burrow,
+		    "Called set_option with illegal option: %s\n", optionname);
     return EINVAL;
   }
 
-  if ((url_affecting) && (backend->server != 0) && (backend->port != 0) &&
-      (backend->proto != 0))
+  if ((url_affecting) && (backend->server != 0) && (backend->port_len != 0) &&
+      (backend->proto_len != 0))
     {
       if (backend->baseurl != 0)
 	free(backend->baseurl);
 
-      size_t lenurl = strlen(backend->proto) + strlen(backend->server) +
-	strlen(backend->port) + 20;
+      size_t lenurl = backend->proto_len + strlen(backend->server) +
+	backend->port_len + 20;
       backend->baseurl = malloc(lenurl);
-      snprintf(backend->baseurl,
-	       lenurl,
-	       "%s://%s:%s",
-	       backend->proto,
-	       backend->server,
-	       backend->port
-	       );
+      backend->baseurl_len = 
+	(size_t)snprintf(backend->baseurl,
+			 lenurl,
+			 "%s://%s:%s",
+			 backend->proto,
+			 backend->server,
+			 backend->port
+			 );
     }
   return 0;
 }
@@ -290,32 +306,40 @@ burrow_backend_http_create_message(void *ptr,
   burrow_backend_t * backend = (burrow_backend_t *)ptr;
   
   CURL *chandle = curl_easy_init();
+  /* Make sure that that which goes into the url is escaped appropriately. */
   account = curl_easy_escape(chandle, cmd->account,0);
   queue = curl_easy_escape(chandle,cmd->queue,0);
   message_id = curl_easy_escape(chandle,cmd->message_id,0);
 
+  /* Now build up the url string, and hand it off to libcurl */
   char *attr_string = burrow_backend_http_attributes_to_string(attributes);
-  size_t urllen = strlen(backend->baseurl) + strlen(account) + 
+  size_t urllen = backend->baseurl_len +
+    backend->proto_version_len +
+    strlen(account) + 
     strlen(queue) + strlen(message_id) +
     (attr_string ? strlen(attr_string) : 0) + 20;
   char *url = (char *)malloc(urllen);
   size_t urllen_sofar =
     (size_t)snprintf(url, urllen, "%s/%s/%s/%s/%s",
-	     backend->baseurl, backend->proto_version,
-	     account, queue, message_id);
+		     backend->baseurl,
+		     backend->proto_version,
+		     account, queue, message_id);
   curl_free(account); account = 0;
   curl_free(queue); queue = 0;
   curl_free(message_id); message_id = 0;
   if (attr_string != 0) {
+
     urllen_sofar += (size_t)snprintf(url + urllen_sofar, urllen - urllen_sofar,
-			     "?%s", attr_string);
+				     "?%s", attr_string);
     free(attr_string);
   }
   burrow_log_debug(backend->burrow, "create_message url = \"%s\"\n", url);
   curl_easy_setopt(chandle, CURLOPT_URL, url);
 
+  /* Set up the data we want to send to burrowd. */
   user_buffer *buffer = user_buffer_create_sized(0, body, body_size);
-  curl_easy_setopt(chandle, CURLOPT_READFUNCTION, user_buffer_curl_read_function);
+  curl_easy_setopt(chandle, CURLOPT_READFUNCTION,
+		   user_buffer_curl_read_function);
   curl_easy_setopt(chandle, CURLOPT_READDATA, buffer);
 
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 1);
@@ -492,6 +516,7 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   char *account = 0;
+  size_t account_len = 0;
   const burrow_filters_st *filters = cmd->filters;
   burrow_st *burrow = backend->burrow;
   burrow_command_t command = burrow->cmd.command;
@@ -503,33 +528,36 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
   chandle = curl_easy_init();
   if (command == BURROW_CMD_GET_QUEUES) {
     account = curl_easy_escape(chandle, cmd->account, 0);
+    account_len = strlen(account);
   }
   filter_str = burrow_backend_http_filters_to_string(backend, filters);
   
-  urllen = strlen(backend->baseurl) +
-    strlen(backend->proto_version) +
-    (account == 0 ? 0 : strlen(account)) +
+  /* Build up the url, and pass to libcurl */
+  urllen = backend->baseurl_len +
+    backend->proto_version_len +
+    account_len +
     (filter_str == 0? 0 : strlen(filter_str)) + 
-    + 128;
+    128;
   char *url = malloc(urllen);
   size_t len_so_far = 0;
 
-  snprintf(url, urllen, "%s/%s",
-	   backend->baseurl,
-	   backend->proto_version
-	   );
+  len_so_far = (size_t)snprintf(url, urllen, "%s/%s",
+				backend->baseurl,
+				backend->proto_version
+				);
 
   if (command == BURROW_CMD_GET_QUEUES) {
-    len_so_far = strlen(url);
     snprintf(url+len_so_far, urllen-len_so_far, "/%s", account);
     curl_free(account);
   }
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
   free(url); url = 0;
+
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
   curl_easy_setopt(chandle, CURLOPT_HTTPGET, 1L);
 
+  /* set up the buffer where libcurl will save what it reads */
   user_buffer *buffer = user_buffer_create(0,0);
   curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION,
 		   user_buffer_curl_write_function);
@@ -551,7 +579,7 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
     curl_multi_add_handle(backend->curlptr, chandle);
   }
 
-  // Toss old buffer, if present
+  // Toss old buffer, if present.  Then set new one.
   if (backend->buffer != 0)
     user_buffer_destroy(backend->buffer);
   backend->buffer = buffer;
@@ -580,6 +608,7 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
 {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   char *account = 0;
+  size_t account_len = 0;
 
   const burrow_filters_st *filters = cmd->filters;
   burrow_st *burrow = backend->burrow;
@@ -590,39 +619,46 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   backend->get_body_only = false;
   CURL *chandle;
   chandle = curl_easy_init();
-  if (command == BURROW_CMD_DELETE_QUEUES)
+  if (command == BURROW_CMD_DELETE_QUEUES) {
     account = curl_easy_escape(chandle, cmd->account, 0);
+    account_len = strlen(account);
+  }
 
   filter_str = burrow_backend_http_filters_to_string(backend, filters);
-  urllen = strlen(backend->baseurl) +
-    strlen(backend->proto_version) +
-    (account==0 ? 0 : strlen(account)) +
+  urllen = backend->baseurl_len +
+    backend->proto_version_len +
+    account_len +
     (filter_str == 0? 0 : strlen(filter_str)) +
     128;
 
   char *url = malloc(urllen);
-  size_t len_so_far = 0;
+  size_t urllen_so_far;
 
-  snprintf(url, urllen, "%s/%s",
-	   backend->baseurl,
-	   backend->proto_version
-	   );
+  urllen_so_far = (size_t)snprintf(url, urllen, "%s/%s",
+				backend->baseurl,
+				backend->proto_version
+				);
 
   if (command == BURROW_CMD_DELETE_QUEUES) {
-    len_so_far = strlen(url);
-    snprintf(url+len_so_far, urllen-len_so_far, "/%s", account);
+    urllen_so_far +=
+      (size_t)snprintf(url+urllen_so_far,
+			      urllen-urllen_so_far,
+			      "/%s",
+			      account);
     curl_free(account); account = 0;
   }
   if (filter_str != 0) {
-    len_so_far = strlen(url);
-    snprintf(url+len_so_far, urllen-len_so_far, "?%s", filter_str);
+    urllen_so_far += 
+      (size_t)snprintf(url+urllen_so_far, urllen-urllen_so_far, "?%s", filter_str);
   }
-
   curl_easy_setopt(chandle, CURLOPT_URL, url);
   free(url); url = 0;
+
+  /* Set random libcurl stuff */
   curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
   curl_easy_setopt(chandle, CURLOPT_CUSTOMREQUEST, "DELETE");
 
+  /* Setup buffer for libcurl to use for response */
   user_buffer *buffer = user_buffer_create(0,0);
   curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION,
 		   user_buffer_curl_write_function);
@@ -673,8 +709,12 @@ burrow_backend_http_common_getting(void *ptr,
 {  
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
   char *account;
+  size_t account_len = 0;
   char *queue;
-  char *message_id;
+  size_t queue_len = 0;
+  char *message_id = 0;
+  size_t message_id_len = 0;
+
   const burrow_attributes_st *attributes = cmd->attributes;
   const burrow_filters_st *filters = cmd->filters;
   burrow_st *burrow = backend->burrow;
@@ -699,58 +739,71 @@ burrow_backend_http_common_getting(void *ptr,
   chandle = curl_easy_init();
     //}
   account = curl_easy_escape(chandle, cmd->account,0);
+  account_len = strlen(account);
   queue = curl_easy_escape(chandle, cmd->queue, 0);
+  queue_len = strlen(queue);
 
   if ((command == BURROW_CMD_UPDATE_MESSAGE) || (command == BURROW_CMD_DELETE_MESSAGE)||
       (command == BURROW_CMD_GET_MESSAGE))
-    message_id = curl_easy_escape(chandle, cmd->message_id, 0);
-  else
-    message_id = 0;
+    {
+      message_id = curl_easy_escape(chandle, cmd->message_id, 0);
+      message_id_len = strlen(message_id);
+    }
 
   filter_str = burrow_backend_http_filters_to_string(backend, filters);
+  size_t filter_str_len = (filter_str == NULL) ? 0 : strlen(filter_str);
 
   // If this is an update, attributes are also sent.
+  size_t attribute_str_len = 0;
   if ((command == BURROW_CMD_UPDATE_MESSAGES) || (command == BURROW_CMD_UPDATE_MESSAGE))
     {
       attribute_str = burrow_backend_http_attributes_to_string(attributes);
+      attribute_str_len = (attribute_str == NULL) ? 0 : strlen(attribute_str);
     }
     
-  urllen = strlen(backend->baseurl) +
-    strlen(backend->proto_version) +
-    strlen(account) +
-    strlen(queue) +
-    (message_id == 0? 0 : strlen(message_id)) +
-    (filter_str == 0? 0 : strlen(filter_str)) + 
-    (attribute_str == 0 ? 0 : strlen(attribute_str)) +
+  urllen = backend->baseurl_len +
+    backend->proto_version_len +
+    account_len +
+    queue_len +
+    message_id_len +
+    filter_str_len +
+    attribute_str_len +
     + 128;
   char *url = malloc(urllen);
-  size_t len_so_far = 0;
+  size_t urllen_so_far = 0;
 
-  snprintf(url, urllen, "%s/%s/%s/%s",
-	   backend->baseurl,
-	   backend->proto_version,
-	   account,
-	   queue);
+  urllen_so_far +=
+    (size_t)snprintf(url, urllen, "%s/%s/%s/%s",
+		     backend->baseurl,
+		     backend->proto_version,
+		     account,
+		     queue);
   curl_free(account); account = 0;
   curl_free(queue); queue = 0;
   if ((command == BURROW_CMD_UPDATE_MESSAGE) || (command == BURROW_CMD_DELETE_MESSAGE)||
-      (command == BURROW_CMD_GET_MESSAGE)) {
-    len_so_far = strlen(url);
-    snprintf(url + len_so_far, urllen-len_so_far, "/%s",
-	     message_id);
-    curl_free(message_id); message_id = 0;
-  }
-  if (filter_str != 0) {
-    len_so_far = strlen(url);
-    snprintf(url + len_so_far, urllen - len_so_far, "?%s", filter_str);
+      (command == BURROW_CMD_GET_MESSAGE))
+    {
+      urllen_so_far += 
+	(size_t)snprintf(url + urllen_so_far, urllen-urllen_so_far, "/%s",
+			 message_id);
+      curl_free(message_id); message_id = 0;
+    }
+  
+  if (filter_str_len != 0) {
+    urllen_so_far += 
+      (size_t)snprintf(url + urllen_so_far, urllen - urllen_so_far,
+		       "?%s",
+		       filter_str);
     free(filter_str); 
   }
-  if (attribute_str != 0) {
-    len_so_far = strlen(url);
+  if (attribute_str_len != 0) {
     if (filter_str != 0)
-      snprintf(url+len_so_far, urllen-len_so_far, "&%s", attribute_str);
+      urllen_so_far +=
+	(size_t)snprintf(url+urllen_so_far, urllen-urllen_so_far, "&%s",
+			 attribute_str);
     else
-      snprintf(url+len_so_far, urllen-len_so_far, "?%s", attribute_str);
+      urllen_so_far += 
+	(size_t)snprintf(url+urllen_so_far, urllen-urllen_so_far, "?%s", attribute_str);
     free(attribute_str); attribute_str = 0;
   }
   burrow_log_debug(backend->burrow,
@@ -758,8 +811,9 @@ burrow_backend_http_common_getting(void *ptr,
 		   url);
 
   curl_easy_setopt(chandle, CURLOPT_URL, url);
-  /* We weren't freeing this -- is this where this free should go? */
-  free(url);
+  free(url); url=0;
+
+  /* set up libcurl command and related stuff... */
   if ((command == BURROW_CMD_GET_MESSAGES) || (command == BURROW_CMD_GET_MESSAGE)){
     curl_easy_setopt(chandle, CURLOPT_UPLOAD, 0L);
     curl_easy_setopt(chandle, CURLOPT_HTTPGET, 1L);
@@ -774,6 +828,7 @@ burrow_backend_http_common_getting(void *ptr,
     curl_easy_setopt(chandle, CURLOPT_CUSTOMREQUEST, "DELETE");
   }
 
+  /* setup buffer for libcurl to use for response */
   user_buffer *buffer = user_buffer_create(0,0);
   curl_easy_setopt(chandle, CURLOPT_WRITEFUNCTION,
 		   user_buffer_curl_write_function);
@@ -784,6 +839,7 @@ burrow_backend_http_common_getting(void *ptr,
     curl_easy_setopt(chandle, CURLOPT_READFUNCTION,
 		     user_buffer_curl_read_nothing_function);
   }
+
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
