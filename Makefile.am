@@ -62,6 +62,7 @@ libburrow_la_SOURCES = \
 	libburrow/filters.c \
 	libburrow/backends.c \
 	libburrow/backends/memory/memory.c \
+	libburrow/backends/memory/dictionary.c \
 	libburrow/backends/http/curl_backend.c \
 	libburrow/backends/http/user_buffer.c \
 	libburrow/backends/http/json_processing.c \

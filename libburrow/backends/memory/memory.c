@@ -21,8 +21,8 @@
  * @brief Memory backend public interface implementation
  */
 
-#include <time.h>
 #include "dictionary.h"
+#include <time.h>
 
 /* These are the possible actions when scanning a queue:*/
 typedef enum 

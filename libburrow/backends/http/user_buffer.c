@@ -21,7 +21,7 @@
  * seems to be needed to deal with libcurl.  At least, I haven't found a
  * better way of dealing with it.
  *
-
+ */
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdlib.h>
