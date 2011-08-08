@@ -33,7 +33,8 @@ dictionary_st* dictionary_init(dictionary_st* self, burrow_st* burrow)
       return NULL;
     }
   
-  self->first = self->last = NULL;
+  self->first = NULL;
+  self->last = NULL;
   self->length = 0;
   self->burrow = burrow;
   return self;
@@ -135,6 +136,7 @@ void dictionary_delete_node(dictionary_st* self, const char* key)
   else
     self->last = current_node->previous;
   
+  burrow_free(self->burrow, current_node->key);
   burrow_free(self->burrow, current_node);
   current_node = NULL;
   self->length--;

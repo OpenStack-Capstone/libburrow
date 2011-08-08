@@ -308,12 +308,9 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   burrow->cmd.command_fn = NULL;
   burrow->cmd.command = BURROW_CMD_NONE;
 
-  burrow->backend_context = backend_fns->create((void *)(burrow + 1), burrow);
-  burrow->backend = backend_fns;
-
   burrow->malloc_fn   = NULL;
   burrow->free_fn     = NULL;
-  
+
   burrow->message_fn  = NULL;
   burrow->queue_fn    = NULL;
   burrow->account_fn  = NULL;
@@ -328,6 +325,9 @@ burrow_st *burrow_create(burrow_st *burrow, const char *backend)
   
   burrow->attributes_list = NULL;
   burrow->filters_list = NULL;
+
+  burrow->backend = backend_fns;
+  burrow->backend_context = backend_fns->create((void *)(burrow + 1), burrow);
 
   return burrow;
 }

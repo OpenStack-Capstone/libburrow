@@ -62,7 +62,6 @@ libburrow_la_SOURCES = \
 	libburrow/filters.c \
 	libburrow/backends.c \
 	libburrow/backends/memory/memory.c \
-	libburrow/backends/memory/dictionary.c \
 	libburrow/backends/http/curl_backend.c \
 	libburrow/backends/http/user_buffer.c \
 	libburrow/backends/http/json_processing.c \
@@ -107,7 +106,11 @@ libburrow_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBBURROW_VERSION)
 include config/pandora-plugin.am
 
 check_PROGRAMS = \
-	tests/burrow_backend_memory 
+	tests/burrow_filters_st \
+	tests/burrow_st \
+	tests/burrow_backend_memory \
+	tests/burrow_attributes_st \
+	tests/burrow_backend_http
 
 check_HEADERS = \
 	tests/common.h

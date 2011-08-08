@@ -50,7 +50,7 @@ typedef dictionary_node_st message_node_st;
 /* A burrow message as stored in the memory backend.*/
 typedef struct
 {
-  const char* message_id;
+  char* message_id;
   char* body;
   size_t body_size;
   uint32_t ttl;
@@ -170,6 +170,8 @@ static int _scan_queue(burrow_backend_memory_st* self,
     if(message->ttl <= current_time)
     {
       dictionary_delete_node(queue->data, item->key);
+      burrow_free(self->burrow, message->message_id);
+      burrow_free(self->burrow, message->body);
       burrow_free(self->burrow, message);
       item = item->next;
       continue;
@@ -233,7 +235,9 @@ static int _scan_queue(burrow_backend_memory_st* self,
                                   &reference_attributes);
          
         }
-        
+
+        burrow_free(self->burrow, message->message_id);
+        burrow_free(self->burrow, message->body);
         burrow_free(self->burrow, message);
         
         break;
@@ -251,12 +255,18 @@ static int _scan_queue(burrow_backend_memory_st* self,
   
   /* If all messages in a queue were deleted, delete the queue itself.*/
   if(!((dictionary_st*)(queue->data))->length)
+  {
+    burrow_free(self->burrow, queue->data);
     dictionary_delete_node(dictionary_get(self->accounts, cmd->account, SEARCH)->data, queue->key);
+  }
   
   /* And if the recently deleted queue was the only queue in an account, 
    delete that account.*/
   if(!((dictionary_st*)(account->data))->length)
-    dictionary_delete_node(self->accounts, cmd->account);
+  {
+    burrow_free(self->burrow, account->data);
+    dictionary_delete_node(self->accounts, cmd->account);    
+  }
   
   return 0;
 }
@@ -349,6 +359,7 @@ static int burrow_backend_memory_delete_queues(void* ptr,
     burrow_free(self->burrow, erase_cmd);
     return 0;
   }
+  erase_cmd->attributes = NULL;
   
   dictionary_node_st* item = iterator->first;
   erase_cmd->account = cmd->account;
@@ -585,14 +596,22 @@ static int burrow_backend_memory_update_message(void *ptr,
         {
           if(message->ttl <= current_time)
           {
+            burrow_free(self->burrow, message->message_id);
+            burrow_free(self->burrow, message->body);
             burrow_free(self->burrow, message);
             dictionary_delete_node(queue->data, cmd->message_id);
             
             if(!((dictionary_st*)(queue->data))->length)
+            {
+              burrow_free(self->burrow, queue->data);
               dictionary_delete_node(account->data, cmd->queue);
+            }
             
             if(!((dictionary_st*)(account->data))->length)
+            {
+              burrow_free(self->burrow, account->data);
               dictionary_delete_node(self->accounts, cmd->account);
+            }
             
             return 0;
           }
@@ -652,13 +671,21 @@ static int burrow_backend_memory_get_message(void *ptr,
           if(message->ttl <= current_time)
           {
             burrow_free(self->burrow, message);
+            burrow_free(self->burrow, message->message_id);
+            burrow_free(self->burrow, message->body);
             dictionary_delete_node(queue->data, cmd->message_id);
             
             if(!((dictionary_st*)(queue->data))->length)
+            {
+              burrow_free(self->burrow, queue->data);
               dictionary_delete_node(account->data, cmd->queue);
+            }
             
             if(!((dictionary_st*)(account->data))->length)
+            {
+              burrow_free(self->burrow, account->data);
               dictionary_delete_node(self->accounts, cmd->account);
+            }
             
             return 0;
           }
@@ -713,15 +740,23 @@ static int burrow_backend_memory_delete_message(void *ptr,
                                     message->body_size, 
                                     &attributes);
           }
-          
+
+          burrow_free(self->burrow, message->message_id);
+          burrow_free(self->burrow, message->body);
           burrow_free(self->burrow, message);
           dictionary_delete_node(queue->data, cmd->message_id);
           
           if(!((dictionary_st*)(queue->data))->length)
+          {
+            burrow_free(self->burrow, queue->data);
             dictionary_delete_node(account->data, cmd->queue);
+          }
           
           if(!((dictionary_st*)(account->data))->length)
+          {
+            burrow_free(self->burrow, account->data);
             dictionary_delete_node(self->accounts, cmd->account);
+          }
         }
   
   return 0;
@@ -777,6 +812,7 @@ static void burrow_backend_memory_free(void* ptr)
   burrow_backend_memory_delete_accounts(self, erase_cmd);
   burrow_free(self->burrow, (burrow_filters_st*)erase_cmd->filters);
   burrow_free(self->burrow, erase_cmd);
+  burrow_free(self->burrow, self->accounts);
   
   if (self->selfallocated)
     burrow_free(self->burrow, self);
