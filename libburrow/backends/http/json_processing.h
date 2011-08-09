@@ -17,7 +17,7 @@
  */
 
 /**
- * @file json_processing.h
+ * @file
  * @brief Declarations of functions to assist with JSON processing.
  */
 

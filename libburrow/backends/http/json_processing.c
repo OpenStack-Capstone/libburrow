@@ -45,10 +45,18 @@ struct json_processing_st {
 
 };
 
+/**
+ * create a new json_processing_st
+ *
+ * @param backend pointer to a burrow_backend_t
+ * @return pointer to a new json_processing_st, or NULL if malloc failed.
+ */
 static json_processing_t*
 burrow_easy_json_st_create(burrow_backend_t* backend)
 {
   json_processing_t *jproc = malloc(sizeof(json_processing_t));
+  if (jproc == NULL)
+    return 0;
   jproc->backend = backend;
   jproc->body = 0;
   jproc->body_size = 0;
@@ -59,6 +67,12 @@ burrow_easy_json_st_create(burrow_backend_t* backend)
   return jproc;
 }
 
+/**
+ * delete a previously allocated json_processing_t object
+ *
+ * @param jproc pointer to a json_processing_t object
+ *
+ */
 static void
 burrow_easy_json_st_destroy(json_processing_t *jproc) {
   if (jproc->body)
@@ -243,13 +257,16 @@ static int burrow_backend_http_json_callback(void *ctx,
 }
 
 /**
- * Process a JSON object that we got from the burrow server.j
- * Should normally only be called on a valid JSON object, I think.
+ * Process a JSON object that we got from the burrow server.
+ * Presently intended to be called on a complete JSON thingie. In future
+ * perhaps this should be extended so it can be called on an incomplete
+ * JSON response, allowing us to start parsing before we get the entire
+ * message.
  *
  * @param backend the http backend
  * @param jsontext the actual JSON text we got from the burrow server
  * @param jsonsize the size of the JSON text we got from the burrow server
- * @return 0 if successful, negative if parsing fails
+ * @return 0 if successful, otherwise errno value if it fails.
  */
 int
 burrow_backend_http_parse_json(burrow_backend_t *backend,
@@ -278,7 +295,7 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
 		   EINVAL,
 		   "WARNING! JSON_parser_char (%d) at byte %d (%d = '%c')\n",
 		   retval, i, (int)nextchar, nextchar);
-      return -1;
+      return EINVAL;
     }
   }    
   if (!JSON_parser_done(jc)) {
@@ -287,7 +304,7 @@ burrow_backend_http_parse_json(burrow_backend_t *backend,
 		 "WARNING! JSON_parser_end indicates JSON syntax error\n");
     delete_JSON_parser(jc);
     burrow_easy_json_st_destroy(json_processing);
-    return -1;
+    return EINVAL;
   }
   delete_JSON_parser(jc);
   burrow_easy_json_st_destroy(json_processing);

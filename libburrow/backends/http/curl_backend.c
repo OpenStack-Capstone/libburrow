@@ -473,14 +473,14 @@ burrow_backend_http_process(void *ptr) {
 	    burrow_backend_http_parse_json(backend,
 					   user_buffer_get_text(backend->buffer),
 					   user_buffer_get_size(backend->buffer));
-	    if (json_return < 0) {
+	    if (json_return > 0) {
 	      // apparently an error occured.
 	      burrow_error(backend->burrow,
-			   EINVAL,
+			   json_return,
 			   "Error occured while trying to parse JSON message: \"%s\"\n",
 			   user_buffer_get_text(backend->buffer)
 			   );
-			   
+	      return json_return;
 	    }
 	  }
       }

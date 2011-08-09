@@ -18,11 +18,12 @@
 
 
 /*
- * libburrow -- burrow Client Library
+ * libburrow -- burrow Client Library -- http backend
  *
- * @brief this ridiculous little collection of functions for user_buffers
- * seems to be needed to deal with libcurl.  At least, I haven't found a
- * better way of dealing with it.
+ * @file
+ * @brief declarations of a silly little collection of functions for
+ * user_buffers which is useful for dealing with libcurl.  May not be
+ * the best way to do it, but seems adequate.
  *
  * Use and distribution licensed under the BSD license.  See
  * the COPYING file in this directory for full text.

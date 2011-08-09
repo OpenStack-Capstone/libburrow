@@ -17,7 +17,7 @@
  */
 /**
  * @file
- * @brief this ridiculous little collection of functions for user_buffers
+ * @brief this silly collection of functions for user_buffers
  * seems to be needed to deal with libcurl.  At least, I haven't found a
  * better way of dealing with it.
  *
@@ -36,16 +36,37 @@ struct user_buffer_st {
 
 #include "user_buffer.h"
 
+/**
+ * Creates a user_buffer, optionally containing data
+ *
+ * @param buffer pointer to a previously allocated buffer, if null a
+ * new one will be allocated.
+ * @param data pointer to character data.  If null, an empty buffer
+ * will be created
+ * @return a pointer to user_buffer.  If NULL, indicates a malloc failure.
+ */
 user_buffer *
 user_buffer_create(user_buffer *buffer, const uint8_t *data) {
   return user_buffer_create_sized(buffer, data,
 				  data ? strlen((const char *)data) : 0);
 }
 
+/**
+ * Creates a user_buffer, optionally containing data, with a size given
+ *
+ * @param buffer pointer to a previously allocated buffer, if null a
+ * new one will be allocated.
+ * @param data pointer to character data.  If null, an empty buffer
+ * will be created
+ * @param data_size size in bytes of string pointed to by data
+ * @return a pointer to user_buffer.  If NULL, indicates a malloc failure.
+ */
 user_buffer *
 user_buffer_create_sized(user_buffer *buffer, const uint8_t *data, size_t data_size){
   if (buffer == 0) {
     buffer = (user_buffer *)malloc(sizeof(user_buffer));
+    if (buffer == NULL)
+      return 0;
   }
   buffer->where = 0;
   if (data == 0) {
@@ -53,12 +74,21 @@ user_buffer_create_sized(user_buffer *buffer, const uint8_t *data, size_t data_s
     buffer->size = 0;
   } else {
     buffer->buf = malloc(data_size);
+    if (buffer->buf == NULL){
+      free(buffer);
+      return 0;
+    }
     memcpy(buffer->buf, data, data_size);
     buffer->size = data_size;
   }
   return buffer;
 }  
 
+/**
+ * Destroys a previously allocated user_buffer.
+ *
+ * @param buffer pointer to a previously allocated user_buffer
+ */
 void
 user_buffer_destroy(user_buffer *buffer) {
   if (buffer->buf != 0)
@@ -66,11 +96,23 @@ user_buffer_destroy(user_buffer *buffer) {
   free(buffer);
 }
 
+/**
+ * Returns a character pointer to the data stored in the user_buffer
+ *
+ * @param buffer pointer to a user_buffer
+ * @return pointer to a char* containing the data within the user_buffer.
+ */
 char *
 user_buffer_get_text(const user_buffer *buffer) {
   return buffer->buf;
 }
 
+/**
+ * Returns the amount of data within a user_buffer
+ *
+ * @param buffer pointer to a user_buffer
+ * @return size (size_t) of the data stored within the user_buffer
+ */
 size_t
 user_buffer_get_size(const user_buffer *buffer){
   return buffer->size;
@@ -78,7 +120,13 @@ user_buffer_get_size(const user_buffer *buffer){
 
 /**
  * when libcurl receives data it will call this function to write
- * it somewhere (a buffer).
+ * it somewhere (a user_buffer).
+ *
+ * @param data where the new data libcurl has read is presently stored
+ * @param size the size of the data libcurl has read
+ * @param nmemb the size of each member that libcurl has read
+ * @param userdata pointer to a user_buffer, in which we will write the new data
+ * @return size of the data read.  Should be the size offered to us.
  */
 size_t
 user_buffer_curl_write_function(char *data, size_t size, size_t nmemb, void *userdata)
@@ -103,6 +151,12 @@ user_buffer_curl_write_function(char *data, size_t size, size_t nmemb, void *use
 /**
  * when libcurl needs to read some data to send, it will call this function
  * to read the data.
+ *
+ * @param data pointer to where we should write the data
+ * @param size number of items of storage available for us to write data
+ * @param nmemb size of each item.  (Thus size*nmemb = total size)
+ * @param userdata pointer to a user_buffer containing whatever we want libcurl to send
+ * @return number of bytes copied to data, for libcurl to send
  */
 size_t
 user_buffer_curl_read_function(char *data, size_t size, size_t nmemb, void *userdata)
@@ -125,6 +179,11 @@ user_buffer_curl_read_function(char *data, size_t size, size_t nmemb, void *user
   }
 }
 
+/**
+ * test function for reading nothing.  If libcurl calls this, it will always
+ * be told nothing is available.
+ *
+ */
 size_t
 user_buffer_curl_read_nothing_function(char *data, size_t size, size_t nmemb,
 				       void *userdata)

@@ -577,6 +577,10 @@ INPUT                  = docs/doxygen \
                          libburrow/structs-local.h \
                          libburrow/constants-local.h \
                          libburrow/backends/dummy/dummy.c \
+			 libburrow/backends/http/user_buffer.c \
+			 libburrow/backends/http/user_buffer.h \
+			 libburrow/backends/http/json_processing.c \
+			 libburrow/backends/http/json_processing.h \
                          examples
 
 # This tag can be used to specify the character encoding of the source files
