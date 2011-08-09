@@ -18,6 +18,7 @@
 
 ACLOCAL_AMFLAGS = -I m4
 LDADD = libburrow.la ${LTLIBCURL}
+LCOV_REMOVE = '*/contrib/*'
 
 bin_PROGRAMS =
 lib_LTLIBRARIES =
@@ -107,10 +108,10 @@ libburrow_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBBURROW_VERSION)
 include config/pandora-plugin.am
 
 check_PROGRAMS = \
-	tests/burrow_filters_st \
 	tests/burrow_st \
-	tests/burrow_backend_memory \
+	tests/burrow_filters_st \
 	tests/burrow_attributes_st \
+	tests/burrow_backend_memory \
 	tests/burrow_backend_http
 
 tests_burrow_backend_http_SOURCES = \
@@ -170,7 +171,8 @@ lcov: lcov-clean check
 	@echo "------------------------------------------------------"
 	@echo
 	cd libburrow && lcov --directory . --base-directory .. --capture --output-file lcov.out
-	cd libburrow && lcov --directory . --base-directory .. --extract lcov.out `pwd`/\* --output-file lcov_extract.out
+	cd libburrow && lcov --directory . --base-directory .. --remove lcov.out ${LCOV_REMOVE} --output-file lcov_remove.out
+	cd libburrow && lcov --directory . --base-directory .. --extract lcov_remove.out `pwd`/\* --output-file lcov_extract.out
 	genhtml -o lcov -t libburrow libburrow/lcov_extract.out
 
 lcov-clean: clean

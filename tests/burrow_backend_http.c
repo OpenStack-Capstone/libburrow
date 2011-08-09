@@ -24,13 +24,21 @@
 #include "common.h"
 #include "burrow_generic_tests.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
+  const char *server = "localhost";
+  const char *port = "8080";
   client_st *client;
+
+  if (argc > 1)
+    server = argv[1];
+  if (argc > 2)
+    port = argv[2];
+
   client = test_setup("http");
-  
-  burrow_set_backend_option(client->burrow, "server", "localhost");
-  burrow_set_backend_option(client->burrow, "port", "8080");
+
+  burrow_set_backend_option(client->burrow, "server", server);
+  burrow_set_backend_option(client->burrow, "port", port);
   
   test_run_functional(client);
   

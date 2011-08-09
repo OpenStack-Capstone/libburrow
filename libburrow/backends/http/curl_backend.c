@@ -161,7 +161,7 @@ burrow_backend_http_filters_to_string(burrow_backend_t *backend,
       len += (size_t)snprintf(buf + len, sizeof(buf) - len, "detail=all");
   }
   
-  if (burrow_filters_get_marker(filters) == NULL) {
+  if (burrow_filters_get_marker(filters) != NULL) {
     char *marker =
       curl_easy_escape(backend->chandle, burrow_filters_get_marker(filters),0);
     if (len > 0) {
