@@ -57,20 +57,23 @@ int main(void)
   burrow_test("burrow_create dummy");
   if ((burrow = burrow_create(NULL, "dummy")) == NULL)
     burrow_test_error("returned NULL");
-
-  burrow_test("bad params initialize");
-  burrow_create_message(burrow, ACCT, QUEUE, MSGID, BODY, BODY_SIZE, NULL);
-  if (burrow_process(burrow) != 0)
-    burrow_test_error("couldn't create base message");
   
   if ((attr = burrow_attributes_create(NULL, burrow)) == NULL)
     burrow_test_error("couldn't create attributes structure");
+  
+  burrow_add_options(burrow, BURROW_OPT_AUTOPROCESS);
+  if ((burrow_get_options(burrow) & BURROW_OPT_AUTOPROCESS) != BURROW_OPT_AUTOPROCESS)
+    burrow_test_error("failed");  
   
   burrow_attributes_set_ttl(attr, 30);
   burrow_attributes_set_hide(attr, 0);
 
   /* MESSAGE */
 
+  burrow_test("burrow_create_message");
+  if (burrow_create_message(burrow, ACCT, QUEUE, MSGID, BODY, BODY_SIZE, NULL))
+    burrow_test_error("good command failed");
+    
   burrow_test("burrow_create_message bad params");
   if (!burrow_create_message(burrow, NULL, QUEUE, MSGID, BODY, BODY_SIZE, NULL)
       || !burrow_create_message(burrow, ACCT, NULL, MSGID, BODY, BODY_SIZE, NULL)
@@ -78,17 +81,29 @@ int main(void)
       || !burrow_create_message(burrow, ACCT, QUEUE, MSGID, NULL, BODY_SIZE, NULL))
     burrow_test_error("bad command allowed");
 
+  burrow_test("burrow_get_message");
+  if (burrow_get_message(burrow, ACCT, QUEUE, MSGID, NULL))
+    burrow_test_error("good command failed");
+
   burrow_test("burrow_get_message bad params");
   if (!burrow_get_message(burrow, NULL, QUEUE, MSGID, NULL)
       || !burrow_get_message(burrow, ACCT, NULL, MSGID, NULL)
       || !burrow_get_message(burrow, ACCT, QUEUE, NULL, NULL))
     burrow_test_error("bad command allowed");
 
+  burrow_test("burrow_delete_message");
+  if (burrow_delete_message(burrow, ACCT, QUEUE, MSGID, NULL))
+    burrow_test_error("good command failed");    
+
   burrow_test("burrow_delete_message bad params");
   if (!burrow_delete_message(burrow, NULL, QUEUE, MSGID, NULL)
       || !burrow_delete_message(burrow, ACCT, NULL, MSGID, NULL)
       || !burrow_delete_message(burrow, ACCT, QUEUE, NULL, NULL))
     burrow_test_error("bad command allowed");
+  
+  burrow_test("burrow_update_message");
+  if (burrow_update_message(burrow, ACCT, QUEUE, MSGID, attr, NULL))
+    burrow_test_error("good command failed");    
 
   burrow_test("burrow_update_message bad params");
   if (!burrow_update_message(burrow, NULL, QUEUE, MSGID, attr, NULL)
@@ -99,15 +114,27 @@ int main(void)
 
   /* MESSAGES */
 
+  burrow_test("burrow_get_messages");
+  if (burrow_get_messages(burrow, ACCT, QUEUE, NULL))
+    burrow_test_error("good command failed");    
+
   burrow_test("burrow_get_messages bad params");
   if (!burrow_get_messages(burrow, NULL, QUEUE, NULL)
       || !burrow_get_messages(burrow, ACCT, NULL, NULL))
     burrow_test_error("bad command allowed");
 
+  burrow_test("burrow_delete_messages");
+  if (burrow_delete_messages(burrow, ACCT, QUEUE, NULL))
+    burrow_test_error("good command failed");    
+
   burrow_test("burrow_delete_messages bad params");
   if (!burrow_delete_messages(burrow, NULL, QUEUE, NULL)
       || !burrow_delete_messages(burrow, ACCT, NULL, NULL))
     burrow_test_error("bad command allowed");
+
+  burrow_test("burrow_update_messages");
+  if (burrow_update_messages(burrow, ACCT, QUEUE, attr, NULL))
+    burrow_test_error("good command failed");    
 
   burrow_test("burrow_update_messages bad params");
   if (!burrow_update_messages(burrow, NULL, QUEUE, attr, NULL)
@@ -117,9 +144,17 @@ int main(void)
 
   /* QUEUES */
   
+  burrow_test("burrow_get_queues");
+  if (burrow_get_queues(burrow, ACCT, NULL))
+    burrow_test_error("good command failed");    
+
   burrow_test("burrow_get_queues bad params");
   if (!burrow_get_queues(burrow, NULL, NULL))
     burrow_test_error("bad command allowed");
+
+  burrow_test("burrow_delete_message");
+  if (burrow_delete_queues(burrow, ACCT, NULL))
+    burrow_test_error("good command failed");    
 
   burrow_test("burrow_delete_message bad params");
   if (!burrow_delete_queues(burrow, NULL, NULL))

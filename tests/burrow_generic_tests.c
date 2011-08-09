@@ -238,7 +238,7 @@ client_st *test_setup(const char *backend)
   client->msgid = "my messageid";
   client->body = (void *)"msg body";
   client->body_size = strlen((char*)client->body);
-  client->verbose = VERBOSE_DEBUG;
+  client->verbose = VERBOSE_ERROR;
   client_reset_expect(client);
   
   burrow_test("burrow_size");
@@ -280,11 +280,7 @@ client_st *test_setup(const char *backend)
 void test_run_functional(client_st *client)
 {
   burrow_st *burrow = client->burrow;
-  burrow_attributes_st *attr;
   
-  if ((attr = burrow_attributes_create(NULL, burrow)) == NULL)
-    burrow_test_error("returned NULL");
-
   /* TEST SET: Create a message, and test that it creates accts, queues and msg itself */
   burrow_test("burrow_create_message");
 
@@ -327,6 +323,11 @@ void test_run_functional(client_st *client)
   /* TEST SET: Hide the message, check that group commands don't affect it, unhide and check normal behavior */
 
   /* hide = 10, ttl not set */
+  burrow_attributes_st *attr;
+
+  if ((attr = burrow_attributes_create(NULL, burrow)) == NULL)
+    burrow_test_error("returned NULL");
+  
   burrow_attributes_set_hide(attr, 10);
 
   burrow_test("burrow_update_message hide=10");
@@ -555,4 +556,78 @@ void test_run_functional(client_st *client)
     client_only(client, EXPECT_NONE);
     burrow_get_accounts(burrow, NULL);
     client_check(client);
+  
+  /* TEST SET: Create message, create alternate, test match_hidden */
+  const char *altid = "alternate message id";
+  burrow_filters_st *filters;
+ 
+  burrow_attributes_unset_all(attr);
+  burrow_attributes_set_hide(attr, 10);
+  
+  burrow_test("burrow_filters_create");
+  if ((filters = burrow_filters_create(NULL, burrow)) == NULL)
+    burrow_test_error("returned NULL");
+  
+  burrow_test("burrow_create_message");
+
+    /* Create */
+    client_may(client, MATCH_MSG);
+    burrow_create_message(burrow, client->acct, client->queue, client->msgid, client->body, client->body_size, attr);
+    client_check(client);
+
+  burrow_test("burrow_create_message alternate");
+
+    /* Create */
+    client_may(client, MATCH_MSG);
+    burrow_create_message(burrow, client->acct, client->queue, altid, client->body, client->body_size, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_messages");
+
+    /* Alternate should show up, but we shouldn't match */
+    client_only(client, CALL_MSG);
+    burrow_get_messages(burrow, client->acct, client->queue, NULL);
+    client_check(client);
+
+  burrow_filters_set_match_hidden(filters, true);
+  burrow_filters_set_detail(filters, BURROW_DETAIL_ALL);
+
+  burrow_test("burrow_get_messages");
+
+    /* Alternate and original should appear */
+    client_must(client, MATCH_MSG);
+    client_must(client, MULT_MSG);
+    burrow_get_messages(burrow, client->acct, client->queue, filters);
+    client_check(client);
+
+  burrow_test("burrow_delete_messages");
+
+    /* Only alternate, non-hidden message should be deleted */
+    client_may(client, CALL_MSG);
+    burrow_delete_messages(burrow, client->acct, client->queue, NULL);
+    client_check(client);
+
+  burrow_test("burrow_get_messages");
+
+    /* Hidden should appear */
+    client_must(client, MATCH_MSG);
+    burrow_get_messages(burrow, client->acct, client->queue, filters);
+    client_check(client);
+
+  burrow_test("burrow_delete_messages");
+
+    /* Delete hidden messages, should match */
+    client_only(client, MATCH_MSG);
+    burrow_delete_messages(burrow, client->acct, client->queue, filters);
+    client_check(client);
+    
+  burrow_test("burrow_get_messages");
+
+    /* Nothing should appear */
+    client_only(client, EXPECT_NONE);
+    burrow_get_messages(burrow, client->acct, client->queue, filters);
+    client_check(client);
 }
+
+
+
