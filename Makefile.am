@@ -87,6 +87,7 @@ noinst_HEADERS = \
 	libburrow/internal.h \
 	libburrow/macros.h \
 	libburrow/backends/http/parser/contrib/JSON_PARSER/JSON_parser.h \
+	libburrow/backends/memory/dictionary.h \
 	libburrow/backends/http/curl_backend.h \
 	libburrow/backends/http/user_buffer.h \
 	libburrow/backends/http/json_processing.h \
