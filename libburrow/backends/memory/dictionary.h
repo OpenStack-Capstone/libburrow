@@ -41,7 +41,7 @@ typedef enum
 } dictionary_get_action_t;
 
 
-  typedef struct dictionary_node_st 
+typedef struct dictionary_node_st 
 {
   char* key;
   struct dictionary_node_st* previous;
