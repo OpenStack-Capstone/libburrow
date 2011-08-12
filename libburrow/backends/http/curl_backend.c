@@ -65,24 +65,48 @@ static int burrow_backend_http_process(void *ptr);
 
 #include "json_processing.h"
 
+/**
+ * helper function to find out which command we are executing right now.
+ *
+ * @param backend
+ * @return command that we are executing
+ */
+
 burrow_command_t
 burrow_backend_http_get_command(burrow_backend_t *backend) {
   return backend->burrow->cmd.command;
 }
 
+/**
+ * helper function to obtain the burrow struct that corresponds to this backend
+ *
+ * @param backend
+ * @return burrow the burrow_st pointer.
+ */
 burrow_st *
 burrow_backend_http_get_burrow(burrow_backend_t *backend) {
   return backend->burrow;
 }
 
+/**
+ * helper function to get the curl_easy_handle in use.
+ *
+ * @param backend
+ * @return the CURL* we are using.
+ */
 CURL *
 burrow_backend_http_get_curl_easy_handle(burrow_backend_t* backend) {
+  if (backend->chandle == NULL)
+    backend->chandle = curl_easy_init();
   return backend->chandle;
 }
 
 /**
  * given attributes, should return a string suitable for placement on the
  * end of a URL
+ *
+ * @param attributes
+ * @return a malloced string that contains something we can tack onto a URL
  */
 static char *
 burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes){
@@ -110,9 +134,14 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
   }
 }
 
-/* Given filters, return a malloced space containing something
-   suitable for adding to the end of a url
-*/
+/**
+ * Given filters, return a malloced space containing something
+ * suitable for adding to the end of a url
+ * @param backend
+ * @param filters The filters we want to examine (can be NULL)
+ * @return a malloced string containing a string representation of the filters
+ * that we can tack on the end of a URL
+ */
 static char *
 burrow_backend_http_filters_to_string(burrow_backend_t *backend,
 				      const burrow_filters_st *filters) {
@@ -183,11 +212,24 @@ burrow_backend_http_filters_to_string(burrow_backend_t *backend,
 }
 
 
+/**
+ * Return the size of a backend object, if the user should want to
+ * allocate the space themself.
+ * @return the size of a backend object
+ */
 static size_t
 burrow_backend_http_size(void){
   return sizeof(burrow_backend_t);
 }
 
+/**
+ * Create a new burrow backend object.
+ *
+ * @param ptr Optionally points to memory where we can create the
+ * backend object.  If NULL, space will be malloced.
+ * @param burrow pointer to an already existing burrow "frontend" object.
+ * @return pointer to a new burrow backend object.
+ */
 static void *
 burrow_backend_http_create(void *ptr, burrow_st *burrow)
 {
@@ -221,6 +263,10 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
   return (void *)backend;
 }
 
+/**
+ * Destroy a previously created http backend
+ * @param ptr pointer to a previously created http backend
+ */
 static void
 burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
@@ -243,6 +289,15 @@ burrow_backend_http_destroy(void * ptr) {
     free(backend);
 }
 
+/**
+ * Sets an option for this backend
+ *
+ * @param ptr Pointer to the backend object
+ * @param optionname String name of the option
+ * @param value String value of the option.  (yes, ports can be passed
+ * as strings)
+ * @return 0 if successful, EINVAL or other errno value otherwise.
+ */
 static int
 burrow_backend_http_set_option(void *ptr,
 			       const char *optionname, const char *value)
@@ -293,6 +348,13 @@ burrow_backend_http_set_option(void *ptr,
 }
 
 
+/**
+ * Send a message to the burrow server
+ *
+ * @param ptr Pointer to the backend object
+ * @param cmd pointer to a burrow_command_st
+ * return 0 if successful, errno otherwise.
+ */
 static int
 burrow_backend_http_create_message(void *ptr,
 				   const burrow_command_st *cmd)
@@ -365,6 +427,12 @@ burrow_backend_http_create_message(void *ptr,
   return burrow_backend_http_process((void*)backend);
 }
   
+/**
+ * Process what we have been told to do, or as much of it as we can do without
+ * blocking.
+ * @param ptr Pointer to backend object.
+ * @return 0 if successful, errno if not.
+ */
 static int
 burrow_backend_http_process(void *ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
@@ -488,6 +556,16 @@ burrow_backend_http_process(void *ptr) {
   }
 }
 
+/**
+ * Called to tell us that an event has occurred on a file descriptor we
+ * previously requested be monitored.  We do not do anything when called,
+ * as the caller will next need to call burrow_backend_http_process
+ *
+ * @param ptr pointer to a backend object
+ * @param fd file descriptor where something happened.
+ * @param event The event will occurred.
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_event_raised(void *ptr,
 				 int fd,
@@ -587,6 +665,13 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
   return burrow_backend_http_process(backend);
 }
 
+/**
+ * Get a list of accounts.
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_get_accounts(void* ptr,
 				 const burrow_command_st *cmd)
@@ -594,6 +679,13 @@ burrow_backend_http_get_accounts(void* ptr,
   return burrow_backend_http_common_getlists(ptr, cmd);
 }
 
+/**
+ * Get a list of queues under a given account
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
 {
@@ -602,6 +694,9 @@ burrow_backend_http_get_queues(void *ptr, const burrow_command_st *cmd)
 
 /**
  * common code for deleting queues or accounts
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
  */
 static int
 burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
@@ -687,12 +782,26 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   return burrow_backend_http_process(backend);
 }
 
+/**
+ * delete accounts on a burrow server
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_delete_accounts(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_delete(ptr, cmd);
 }
 
+/**
+ * Delete queues on a burrow server
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
 {
@@ -700,8 +809,12 @@ burrow_backend_http_delete_queues(void *ptr, const burrow_command_st *cmd)
 }
 
 /**
- * Performs anything that can get a message(s).  That includes get_message,
- * update_message and delete_message
+ * Common code for performing anything that can get a message(s).
+ * That includes get_message, update_message and delete_message
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
  */
 static int
 burrow_backend_http_common_getting(void *ptr,
@@ -864,36 +977,76 @@ burrow_backend_http_common_getting(void *ptr,
   return burrow_backend_http_process(backend);
 }
 
+/**
+ * Delete a message
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_delete_message(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
+/**
+ * Delete multiple messages
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_delete_messages(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
+/**
+ * get a message from a burrow server
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_get_message(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
+/**
+ * Get messages from a burrow server
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_get_messages(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
+/**
+ * Update a message on a burrow server
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_update_message(void *ptr, const burrow_command_st *cmd)
 {
   return burrow_backend_http_common_getting(ptr, cmd);
 }
 
+/**
+ * Update 0 or more messages on a burrow server
+ *
+ * @param ptr pointer to a backend object
+ * @param cmd pointer to a parsed command structure
+ * @return 0 if successful, errno if not
+ */
 static int
 burrow_backend_http_update_messages(void *ptr, const burrow_command_st *cmd)
 {
