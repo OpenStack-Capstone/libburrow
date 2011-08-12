@@ -22,6 +22,8 @@
  * better way of dealing with it.
  *
  */
+#include "config.h"
+#include <stdbool.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdlib.h>
