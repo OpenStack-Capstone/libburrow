@@ -31,6 +31,7 @@ struct user_buffer_st {
   size_t size;
   size_t where;
   char *buf;
+  bool malloced;
 };
 
 
@@ -67,6 +68,9 @@ user_buffer_create_sized(user_buffer *buffer, const uint8_t *data, size_t data_s
     buffer = (user_buffer *)malloc(sizeof(user_buffer));
     if (buffer == NULL)
       return 0;
+    buffer->malloced = true;
+  } else {
+    buffer->malloced = false;
   }
   buffer->where = 0;
   if (data == 0) {
@@ -93,7 +97,8 @@ void
 user_buffer_destroy(user_buffer *buffer) {
   if (buffer->buf != 0)
     free(buffer->buf);
-  free(buffer);
+  if (buffer->malloced)
+    free(buffer);
 }
 
 /**
