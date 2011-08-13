@@ -142,7 +142,10 @@ user_buffer_curl_write_function(char *data, size_t size, size_t nmemb, void *use
   size_t len = size * nmemb;
   if (userd->size != 0) {
     if (userd->buf != 0) {
-      userd->buf = (char *)realloc(userd->buf, userd->size + len);
+      char *temp = (char *)realloc(userd->buf, userd->size + len);
+      if (temp == NULL) 
+	return 0;
+      userd->buf = temp;
       userd->size += len;
     }
   } else {
