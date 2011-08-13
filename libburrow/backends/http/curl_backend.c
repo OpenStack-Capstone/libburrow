@@ -102,6 +102,38 @@ burrow_backend_http_get_curl_easy_handle(burrow_backend_t* backend) {
 }
 
 /**
+ * given to libcurl for printing debug messages
+ *
+ * @param chancle The CURL handle in use
+ * @param type A curl_infotype to indicate type of message
+ * @param mesg Pointer to the message, which has a linefeed, but no
+ * NULL termination
+ * @param mesg_size size of the message
+ * @return 0
+ */
+static int
+burrow_backend_http_curldebug(CURL *chandle, curl_infotype type,
+			      char *mesg, size_t mesg_size, void *ptr)
+{
+  (void)chandle;
+  (void)type;
+  const char *preface;
+  burrow_backend_t *backend = (burrow_backend_t *)ptr;
+  if (type == CURLINFO_TEXT)
+    preface = "  ";
+  else if (type == CURLINFO_HEADER_IN)
+    preface = "";
+  else if (type == CURLINFO_HEADER_OUT)
+    preface = "";
+  else if (type == CURLINFO_DATA_IN)
+    preface = "< ";
+  else if (type == CURLINFO_DATA_OUT)
+    preface = "> ";
+  burrow_log_debug(backend->burrow, "%s%.*s", preface, mesg_size, mesg);
+  return 0;
+}
+
+/**
  * given attributes, should return a string suitable for placement on the
  * end of a URL
  *
@@ -270,7 +302,7 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
 static void
 burrow_backend_http_destroy(void * ptr) {
   burrow_backend_t *backend = (burrow_backend_t *)ptr;
-  burrow_log_debug(backend->burrow, "burrow_backend_http_destroy callled\n");
+  burrow_log_debug(backend->burrow, "burrow_backend_http_destroy called\n");
   if (backend->server !=0)
     free(backend->server);
   if (backend->baseurl)
@@ -409,6 +441,9 @@ burrow_backend_http_create_message(void *ptr,
 
 /*  curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1); */
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
+  curl_easy_setopt(chandle, CURLOPT_DEBUGFUNCTION,
+		   burrow_backend_http_curldebug);
+  curl_easy_setopt(chandle, CURLOPT_DEBUGDATA, backend);
 
   if (backend->chandle) {
     curl_multi_remove_handle(backend->curlptr, backend->chandle);
@@ -641,6 +676,9 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
 		   user_buffer_curl_write_function);
   curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
 
+  curl_easy_setopt(chandle, CURLOPT_DEBUGFUNCTION,
+		   burrow_backend_http_curldebug);
+  curl_easy_setopt(chandle, CURLOPT_DEBUGDATA, backend);
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
@@ -759,6 +797,9 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
 		   user_buffer_curl_write_function);
   curl_easy_setopt(chandle, CURLOPT_WRITEDATA, buffer);
 
+  curl_easy_setopt(chandle, CURLOPT_DEBUGFUNCTION,
+		   burrow_backend_http_curldebug);
+  curl_easy_setopt(chandle, CURLOPT_DEBUGDATA, backend);
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
   // Toss old curl handle, if present and different
@@ -953,6 +994,9 @@ burrow_backend_http_common_getting(void *ptr,
 		     user_buffer_curl_read_nothing_function);
   }
 
+  curl_easy_setopt(chandle, CURLOPT_DEBUGFUNCTION,
+		   burrow_backend_http_curldebug);
+  curl_easy_setopt(chandle, CURLOPT_DEBUGDATA, backend);
   curl_easy_setopt(chandle, CURLOPT_VERBOSE, 1);
   curl_easy_setopt(chandle, CURLOPT_HEADER, 0);
 
