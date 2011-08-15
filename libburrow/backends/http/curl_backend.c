@@ -138,14 +138,22 @@ burrow_backend_http_curldebug(CURL *chandle, curl_infotype type,
  * end of a URL
  *
  * @param attributes
- * @return a malloced string that contains something we can tack onto a URL
+ * @param size length of malloced string, or errno val if fails
+ * and (return value will be null)
+ * @return a malloced string that contains something we can tack onto a URL.
+ * or NULL if there is nothing in attributes (and size will be zero), or
+ * of NULL if there is a failure (and size will be errno value)
  */
 static char *
-burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes){
+burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes,
+					 int *size)
+{
   char buf[1024] = "";
   size_t len = 0;
-  if (attributes == 0)
+  if (attributes == 0) {
+    *size = 0;
     return 0;
+  }
   if (burrow_attributes_isset_ttl(attributes))
     len = (size_t)snprintf(buf, sizeof(buf), "ttl=%ld",
 			   burrow_attributes_get_ttl(attributes));
@@ -161,7 +169,12 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
     return 0;
   } else {
     char *ptr = malloc(len+1);
+    if (ptr == NULL) {
+      *size = ENOMEM;
+      return 0;
+    }
     memcpy(ptr, buf, len+1);
+    *size = (int)len;
     return ptr;
   }
 }
@@ -176,11 +189,15 @@ burrow_backend_http_attributes_to_string(const burrow_attributes_st *attributes)
  */
 static char *
 burrow_backend_http_filters_to_string(burrow_backend_t *backend,
-				      const burrow_filters_st *filters) {
+				      const burrow_filters_st *filters,
+				      int *size)
+{
   char buf[1024] = "";
   size_t len = 0;
-  if (filters == 0)
+  if (filters == 0) {
+    *size = 0;
     return 0;
+  }
 
   if (burrow_filters_isset_match_hidden(filters)) {
     if (burrow_filters_get_match_hidden(filters) == true)
@@ -235,10 +252,12 @@ burrow_backend_http_filters_to_string(burrow_backend_t *backend,
   }
 
   if (len == 0){
+    *size = 0;
     return 0;
   } else {
     char*ptr = (char*)malloc(len+1);
     memcpy(ptr, buf, len+1);
+    *size = (int)len;
     return ptr;
   }
 }
@@ -406,12 +425,20 @@ burrow_backend_http_create_message(void *ptr,
   message_id = curl_easy_escape(chandle,cmd->message_id,0);
 
   /* Now build up the url string, and hand it off to libcurl */
-  char *attr_string = burrow_backend_http_attributes_to_string(attributes);
+  int attr_str_len;
+  char *attr_string = burrow_backend_http_attributes_to_string(attributes,
+							       &attr_str_len);
+  if ((attr_string == NULL) && (attr_str_len != 0)) {
+    burrow_error(backend->burrow,
+		 attr_str_len,
+		 "Attempt to create attribute string from attributes failed");
+    return attr_str_len;
+  }
   size_t urllen = backend->baseurl_len +
     backend->proto_version_len +
     strlen(account) + 
     strlen(queue) + strlen(message_id) +
-    (attr_string ? strlen(attr_string) : 0) + 20;
+    (size_t)attr_str_len + 20;
   char *url = (char *)malloc(urllen);
   size_t urllen_sofar =
     (size_t)snprintf(url, urllen, "%s/%s/%s/%s/%s",
@@ -635,6 +662,7 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
   burrow_command_t command = burrow->cmd.command;
   size_t urllen = 0;
   char *filter_str = 0;
+  int filter_str_len;
   backend->get_body_only = false;
 
   CURL *chandle;
@@ -643,13 +671,20 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
     account = curl_easy_escape(chandle, cmd->account, 0);
     account_len = strlen(account);
   }
-  filter_str = burrow_backend_http_filters_to_string(backend, filters);
+  filter_str = burrow_backend_http_filters_to_string(backend, filters,
+						     &filter_str_len);
+  if ((filter_str == NULL) && (filter_str_len != 0)) {
+    burrow_error(burrow,
+		 filter_str_len,
+		 "Attempt to create filterURL from filters failed\n");
+    return filter_str_len;
+  }
   
   /* Build up the url, and pass to libcurl */
   urllen = backend->baseurl_len +
     backend->proto_version_len +
     account_len +
-    (filter_str == 0? 0 : strlen(filter_str)) + 
+    (size_t)filter_str_len +
     128;
   char *url = malloc(urllen);
   size_t len_so_far = 0;
@@ -748,6 +783,7 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   burrow_command_t command = burrow->cmd.command;
   size_t urllen = 0;
   char *filter_str = 0;
+  int filter_str_len;
 
   backend->get_body_only = false;
   CURL *chandle;
@@ -757,11 +793,18 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
     account_len = strlen(account);
   }
 
-  filter_str = burrow_backend_http_filters_to_string(backend, filters);
+  filter_str = burrow_backend_http_filters_to_string(backend, filters,
+						     &filter_str_len);
+  if ((filter_str == NULL) && (filter_str_len != 0)) {
+    burrow_error(burrow,
+		 filter_str_len,
+		 "Attempt to create URL type string from filters failed\n");
+    return filter_str_len;
+  }
   urllen = backend->baseurl_len +
     backend->proto_version_len +
     account_len +
-    (filter_str == 0? 0 : strlen(filter_str)) +
+    (size_t)filter_str_len +
     128;
 
   char *url = malloc(urllen);
@@ -783,6 +826,7 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
   if (filter_str != 0) {
     urllen_so_far += 
       (size_t)snprintf(url+urllen_so_far, urllen-urllen_so_far, "?%s", filter_str);
+    free(filter_str); filter_str_len = 0;
   }
   curl_easy_setopt(chandle, CURLOPT_URL, url);
   free(url); url = 0;
@@ -875,6 +919,7 @@ burrow_backend_http_common_getting(void *ptr,
   burrow_command_t command = burrow->cmd.command;
   size_t urllen = 0;
   char *filter_str = 0;
+  int filter_str_len;
   char *attribute_str = 0;
 
   if ((filters) &&
@@ -904,15 +949,28 @@ burrow_backend_http_common_getting(void *ptr,
       message_id_len = strlen(message_id);
     }
 
-  filter_str = burrow_backend_http_filters_to_string(backend, filters);
-  size_t filter_str_len = (filter_str == NULL) ? 0 : strlen(filter_str);
+  filter_str = burrow_backend_http_filters_to_string(backend, filters,
+						     &filter_str_len);
+  if ((filter_str == NULL) && (filter_str_len != 0)) {
+    burrow_error(burrow,
+		 filter_str_len,
+		 "Attempt to create URL string from filters failed\n");
+    return filter_str_len;
+  }
 
   // If this is an update, attributes are also sent.
-  size_t attribute_str_len = 0;
+  int attribute_str_len = 0;
   if ((command == BURROW_CMD_UPDATE_MESSAGES) || (command == BURROW_CMD_UPDATE_MESSAGE))
     {
-      attribute_str = burrow_backend_http_attributes_to_string(attributes);
-      attribute_str_len = (attribute_str == NULL) ? 0 : strlen(attribute_str);
+      attribute_str = burrow_backend_http_attributes_to_string(attributes,
+							       &attribute_str_len
+							       );
+      if ((attribute_str == NULL) && (attribute_str_len != 0)) {
+	burrow_error(burrow,
+		     attribute_str_len,
+		     "Call to create string from attributes failed\n");
+	return attribute_str_len;
+      }
     }
     
   urllen = backend->baseurl_len +
@@ -920,8 +978,8 @@ burrow_backend_http_common_getting(void *ptr,
     account_len +
     queue_len +
     message_id_len +
-    filter_str_len +
-    attribute_str_len +
+    (size_t)filter_str_len +
+    (size_t)attribute_str_len +
     + 128;
   char *url = malloc(urllen);
   size_t urllen_so_far = 0;
@@ -948,7 +1006,7 @@ burrow_backend_http_common_getting(void *ptr,
       (size_t)snprintf(url + urllen_so_far, urllen - urllen_so_far,
 		       "?%s",
 		       filter_str);
-    free(filter_str); 
+    // free filter_str later
   }
   if (attribute_str_len != 0) {
     if (filter_str != 0)
@@ -960,6 +1018,11 @@ burrow_backend_http_common_getting(void *ptr,
 	(size_t)snprintf(url+urllen_so_far, urllen-urllen_so_far, "?%s", attribute_str);
     free(attribute_str); attribute_str = 0;
   }
+  if(filter_str != 0) {
+    free(filter_str);
+    filter_str = 0;
+  }
+
   burrow_log_debug(backend->burrow,
 		   "URL to send is \"%s\"\n",
 		   url);
