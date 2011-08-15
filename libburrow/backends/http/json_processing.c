@@ -183,7 +183,7 @@ static int burrow_backend_http_json_callback(void *ctx,
 				 0, 0);
 	    if (jproc->message_id)
 	      free(jproc->message_id);
-	    int len = strlen(message_id);
+	    size_t len = strlen(message_id);
 	    jproc->message_id = malloc(len + 1);
 	    if(jproc->message_id == NULL) {
 	      burrow_error(burrow_backend_http_get_burrow(jproc->backend),
