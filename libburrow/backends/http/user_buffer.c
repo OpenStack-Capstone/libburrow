@@ -151,6 +151,8 @@ user_buffer_curl_write_function(char *data, size_t size, size_t nmemb, void *use
   } else {
     userd->size = len;
     userd->buf = malloc(len);
+    if (userd->buf == 0)
+      return 0;
     userd->where = 0;
   }
   memcpy(userd->buf + userd->where, data, len);

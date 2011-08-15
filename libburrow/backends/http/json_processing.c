@@ -26,6 +26,7 @@
 
 #include "curl_backend.h"
 #include "user_buffer.h"
+#include <string.h>
 
 #ifdef DMALLOC
 #include "dmalloc.h"
@@ -161,7 +162,15 @@ static int burrow_backend_http_json_callback(void *ctx,
 	jproc->is_key = 1;
 	if (jproc->key)
 	  free(jproc->key);
-	jproc->key = strdup(value->vu.str.value);
+
+	jproc->key = malloc(value->vu.str.length + 1);
+	if (jproc->key == NULL) {
+	  burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+		       ENOMEM,
+		       "ERROR!  malloc failed during JSON parsing");
+	  return 0;
+	}
+	memcpy(jproc->key, value->vu.str.value, value->vu.str.length + 1);
 	break;
       case JSON_T_STRING:
 	// Now check if key is valid
@@ -172,11 +181,28 @@ static int burrow_backend_http_json_callback(void *ctx,
 	      curl_easy_unescape(burrow_backend_http_get_curl_easy_handle(jproc->backend),
 				 value->vu.str.value,
 				 0, 0);
-	    jproc->message_id = strdup(message_id);
+	    if (jproc->message_id)
+	      free(jproc->message_id);
+	    int len = strlen(message_id);
+	    jproc->message_id = malloc(len + 1);
+	    if(jproc->message_id == NULL) {
+	      burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+			   ENOMEM,
+			   "ERROR!  malloc failed!\n");
+	      return 0;
+	    }
+	    memcpy(jproc->message_id, message_id, len + 1);
 	    curl_free(message_id);
 	  } else if (strcmp(jproc->key, "body") == 0) {
-	    jproc->body = strdup(value->vu.str.value);
-	    jproc->body_size = strlen(value->vu.str.value);
+	    jproc->body_size = value->vu.str.length;
+	    jproc->body = malloc(jproc->body_size);
+	    if (jproc->body == 0) {
+	      burrow_error(burrow_backend_http_get_burrow(jproc->backend),
+			   ENOMEM,
+			   "ERROR!  malloc failed!\n");
+	      return 0;
+	    }
+	    memcpy(jproc->body, value->vu.str.value, jproc->body_size + 1);
 	  } else {
 	    burrow_error(burrow_backend_http_get_burrow(jproc->backend),
 			 EINVAL,
