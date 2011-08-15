@@ -256,6 +256,10 @@ burrow_backend_http_filters_to_string(burrow_backend_t *backend,
     return 0;
   } else {
     char*ptr = (char*)malloc(len+1);
+    if (ptr == NULL) {
+      *size = ENOMEM;
+      return ptr;
+    }
     memcpy(ptr, buf, len+1);
     *size = (int)len;
     return ptr;
@@ -288,6 +292,12 @@ burrow_backend_http_create(void *ptr, burrow_st *burrow)
 
   if (backend == 0) {
     backend = (burrow_backend_t *)malloc(sizeof(burrow_backend_t));
+    if (backend == NULL) {
+      burrow_error(burrow,
+		   ENOMEM,
+		   "Failed to malloc space for a new backend object\n");
+      return (void *)0;
+    }
     backend->malloced = true;
   } else {
     backend->malloced = false;
@@ -359,6 +369,12 @@ burrow_backend_http_set_option(void *ptr,
   if (strcmp(optionname, "server") == 0) {
     backend->server_len = strlen(value);
     backend->server = malloc(backend->server_len + 1);
+    if (backend->server == 0) {
+      burrow_error(backend->burrow,
+		   ENOMEM,
+		   "Attempt to malloc space to store server name failed\n");
+      return ENOMEM;
+    }
     strcpy(backend->server, value);
     url_affecting = 1;
   } else if (strcmp(optionname, "port") == 0) {
@@ -386,6 +402,12 @@ burrow_backend_http_set_option(void *ptr,
       size_t lenurl = backend->proto_len + strlen(backend->server) +
 	backend->port_len + 20;
       backend->baseurl = malloc(lenurl);
+      if (backend->baseurl == NULL) {
+	burrow_error(backend->burrow,
+		     ENOMEM,
+		     "Attempt to malloc space for URL failed\n");
+	return ENOMEM;
+      }
       backend->baseurl_len = 
 	(size_t)snprintf(backend->baseurl,
 			 lenurl,
@@ -440,6 +462,12 @@ burrow_backend_http_create_message(void *ptr,
     strlen(queue) + strlen(message_id) +
     (size_t)attr_str_len + 20;
   char *url = (char *)malloc(urllen);
+  if (url == NULL) {
+    burrow_error(backend->burrow,
+		 ENOMEM,
+		 "Failed to malloc space for URL\n");
+    return ENOMEM;
+  }
   size_t urllen_sofar =
     (size_t)snprintf(url, urllen, "%s/%s/%s/%s/%s",
 		     backend->baseurl,
@@ -687,6 +715,12 @@ burrow_backend_http_common_getlists(void *ptr, const burrow_command_st *cmd)
     (size_t)filter_str_len +
     128;
   char *url = malloc(urllen);
+  if (url == NULL) {
+    burrow_error(backend->burrow,
+		 ENOMEM,
+		 "Failed to malloc space for URL\n");
+    return ENOMEM;
+  }
   size_t len_so_far = 0;
 
   len_so_far = (size_t)snprintf(url, urllen, "%s/%s",
@@ -808,6 +842,12 @@ burrow_backend_http_common_delete(void *ptr, const burrow_command_st *cmd)
     128;
 
   char *url = malloc(urllen);
+  if (url == NULL) {
+    burrow_error(backend->burrow,
+		 ENOMEM,
+		 "Failed to malloc space for URL\n");
+    return ENOMEM;
+  }
   size_t urllen_so_far;
 
   urllen_so_far = (size_t)snprintf(url, urllen, "%s/%s",
@@ -982,6 +1022,12 @@ burrow_backend_http_common_getting(void *ptr,
     (size_t)attribute_str_len +
     + 128;
   char *url = malloc(urllen);
+  if (url == NULL) {
+    burrow_error(backend->burrow,
+		 ENOMEM,
+		 "Failed to malloc space for URL\n");
+    return ENOMEM;
+  }
   size_t urllen_so_far = 0;
 
   urllen_so_far +=
